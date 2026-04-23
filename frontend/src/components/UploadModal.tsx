@@ -10,28 +10,14 @@ interface UploadModalProps {
 }
 
 // This component shows a pop-up window (a "Modal") where users can upload content.
-// It has several steps: Login, Selecting a Category, Scanning the file, and showing the Result.
+// It has several steps: Selecting a Category, Scanning the file, and showing the Result.
 
 export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   // "useState" is how we keep track of things that change in our app.
-  // We keep track of the current step, the user's email/password, and what they selected.
-  const [step, setStep] = useState<'login' | 'upload' | 'scanning' | 'result'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // We keep track of the current step and what they selected.
+  const [step, setStep] = useState<'upload' | 'scanning' | 'result'>('upload');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [isError, setIsError] = useState(false);
 
-  // This function runs when the user clicks "Sign In".
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault(); // This stops the page from refreshing.
-    // We check if the email and password match our "hardcoded" (fixed) credentials.
-    if (email === 'admin@namibia.org' && password === 'namibia2026') {
-      setStep('upload');
-      setIsError(false);
-    } else {
-      setIsError(true);
-    }
-  };
 
   // This function runs when the user clicks "Start Scanning".
   const handleUpload = () => {
@@ -71,59 +57,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
         <div className="p-8">
           {/* "AnimatePresence" helps us animate things when they appear or disappear. */}
           <AnimatePresence mode="wait">
-            {step === 'login' && (
-              <motion.div
-                key="login"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <div className="flex justify-center mb-6">
-                  <div className="p-4 bg-amber-500/20 rounded-2xl">
-                    <ShieldCheck size={40} className="text-amber-500" />
-                  </div>
-                </div>
-                <h3 className="text-2xl font-bold text-center mb-2">Contributor Login</h3>
-                <p className="text-center text-white/40 text-sm mb-8">
-                  Please sign in to contribute to the repository.
-                  <br />
-                  <span className="text-[10px] opacity-50">Hint: admin@namibia.org / namibia2026</span>
-                </p>
-
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div>
-                    <input
-                      type="email"
-                      placeholder="Email Address"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full h-12 px-4 glass rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="password"
-                      placeholder="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full h-12 px-4 glass rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition-all"
-                      required
-                    />
-                  </div>
-                  {isError && (
-                    <p className="text-red-400 text-xs text-center">Invalid credentials. Try the hint above.</p>
-                  )}
-                  <button
-                    type="submit"
-                    className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20"
-                  >
-                    Sign In
-                  </button>
-                </form>
-              </motion.div>
-            )}
-
             {step === 'upload' && (
               <motion.div
                 key="upload"

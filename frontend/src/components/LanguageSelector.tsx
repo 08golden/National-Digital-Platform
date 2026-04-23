@@ -18,9 +18,10 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ selectedId, 
   const selected = LANGUAGES.find(l => l.id === selectedId) || LANGUAGES[0];
 
   return (
-    <div className="relative z-50">
+    <div id="language-selector-container" className="relative z-50">
       {/* This is the main button you click to open the menu. */}
       <button
+        id="btn-language-dropdown"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-4 py-2 glass rounded-full hover:bg-white/20 transition-all text-sm font-medium"
       >
@@ -34,10 +35,11 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ selectedId, 
         {isOpen && (
           <>
             {/* This invisible "overlay" closes the menu if you click anywhere else on the screen. */}
-            <div className="fixed inset-0" onClick={() => setIsOpen(false)} />
+            <div id="dropdown-overlay" className="fixed inset-0" onClick={() => setIsOpen(false)} />
             
             {/* This is the actual list of languages. */}
             <motion.div
+              id="language-dropdown-menu"
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -46,6 +48,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ selectedId, 
               <div className="p-2">
                 {LANGUAGES.map((lang) => (
                   <button
+                    id={`btn-select-lang-${lang.id}`}
                     key={lang.id}
                     onClick={() => {
                       // When a language is clicked, we tell the main app which one was picked.

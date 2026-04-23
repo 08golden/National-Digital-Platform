@@ -18,8 +18,9 @@ const ICON_MAP = {
 
 export const CategoryTabs: React.FC<CategoryTabsProps> = ({ activeCategory, onSelect }) => {
   return (
-    <div className="flex items-center gap-2 p-1 glass rounded-full">
+    <div id="category-tabs-container" className="flex items-center gap-2 p-1 glass rounded-full">
       <button
+        id="tab-category-all"
         onClick={() => onSelect(null)}
         className={cn(
           "px-4 py-2 rounded-full text-sm font-medium transition-all",
@@ -34,6 +35,7 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({ activeCategory, onSe
         const Icon = ICON_MAP[cat];
         return (
           <button
+            id={`tab-category-${cat.toLowerCase()}`}
             key={cat}
             onClick={() => onSelect(cat)}
             className={cn(
