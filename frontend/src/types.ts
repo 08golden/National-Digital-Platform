@@ -21,6 +21,19 @@ export interface User {
   createdAt: string;
 }
 
+export interface AppUser {
+  id: string;
+  username: string;
+  display_name?: string | null;
+  email: string;
+  role: 'admin' | 'contributor' | 'viewer';
+  avatar_url?: string | null;
+  metadata: Record<string, any>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // This describes what information every Language in our app must have.
 export interface Language {
   id: string;               // unique identifier (like 'oshiwambo')
