@@ -1,54 +1,111 @@
-import React from 'react';
-import { Search } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Loader2, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../lib/utils';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
+  isLoading?: boolean;
 }
 
-// This component is the search bar in the middle of the landing page.
-// It allows users to type in a query and click "Search" to find items.
+export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading = false }) => {
+  const [value, setValue] = useState('');
+  const [error, setError] = useState('');
 
-export const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
-  // "value" keeps track of what the user is currently typing in the input field.
-  const [value, setValue] = React.useState('');
-
-  // This function runs when the user clicks the "Search" button or presses "Enter".
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault(); // This stops the page from refreshing.
-    if (value.trim()) {
-      // If the user typed something, we tell the main app to start searching.
-      onSearch(value);
+    e.preventDefault();
+    
+    if (value.trim().length < 2) {
+      setError('Please enter at least 2 characters');
+      return;
+    }
+
+    setError('');
+    onSearch(value.trim());
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(e.target.value);
+    if (error && e.target.value.trim().length >= 2) {
+      setError('');
     }
   };
 
+  const isEmpty = value.trim().length === 0;
+
   return (
-    <form onSubmit={handleSubmit} className="relative w-full max-w-2xl group">
-      {/* This is the search icon on the left side of the bar. */}
-      <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-        <Search size={20} className="text-white/40 group-focus-within:text-white/80 transition-colors" />
+    <div className="w-full max-w-3xl space-y-3">
+      <form 
+        onSubmit={handleSubmit} 
+        className={cn(
+          "relative w-full group transition-all duration-500",
+          error ? "scale-[1.02]" : "focus-within:scale-[1.01]"
+        )}
+      >
+        <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
+          {isLoading ? (
+            <Loader2 size={24} className="text-amber-500 animate-spin" />
+          ) : (
+            <Search size={24} className={cn(
+              "transition-colors duration-300",
+              error ? "text-red-400" : "text-white/20 group-focus-within:text-amber-500"
+            )} />
+          )}
+        </div>
+        
+        <input
+          id="main-search-input"
+          type="text"
+          placeholder="Experience the voices of Namibia..."
+          value={value}
+          onChange={handleInputChange}
+          className={cn(
+            "w-full h-20 pl-16 pr-40 glass rounded-[2.5rem] text-xl focus:outline-none transition-all duration-300",
+            "placeholder:text-white/20 bg-white/5 backdrop-blur-3xl",
+            error 
+              ? "ring-2 ring-red-500/50 bg-red-500/5" 
+              : "focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10"
+          )}
+        />
+        
+        <div className="absolute right-3 inset-y-0 flex items-center gap-4">
+          {!isEmpty && (
+            <kbd className="hidden md:inline-flex h-9 items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-3 font-mono text-[10px] font-bold text-white/20">
+              <span className="text-sm">⌘</span>K
+            </kbd>
+          )}
+          
+          <button
+            id="btn-search-submit"
+            type="submit"
+            disabled={isEmpty || isLoading}
+            className={cn(
+              "h-14 px-10 rounded-full font-display font-bold text-lg transition-all duration-500 flex items-center gap-2",
+              isEmpty || isLoading
+                ? "bg-white/5 text-white/20 cursor-not-allowed opacity-50"
+                : "bg-white text-black hover:bg-amber-500 hover:scale-105 active:scale-95 shadow-xl shadow-black/20"
+            )}
+          >
+            {isLoading ? "Searching..." : "Search"}
+          </button>
+        </div>
+      </form>
+
+      <div className="h-6 px-6">
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="flex items-center gap-2 text-red-400 text-sm font-medium"
+            >
+              <AlertCircle size={14} />
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      
-      {/* This is the actual input field where the user types. */}
-      <input
-        type="text"
-        placeholder="Search for articles, audio, books..."
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="w-full h-16 pl-14 pr-32 glass rounded-full text-lg focus:outline-none focus:ring-2 focus:ring-white/30 transition-all placeholder:text-white/30"
-      />
-      
-      {/* This is the "Search" button and the keyboard shortcut hint on the right. */}
-      <div className="absolute right-2 inset-y-0 flex items-center gap-2">
-        <kbd className="hidden sm:inline-flex h-8 items-center gap-1 rounded border border-white/20 bg-white/10 px-2 font-mono text-[10px] font-medium text-white/50">
-          <span className="text-xs">⌘</span>K
-        </kbd>
-        <button
-          type="submit"
-          className="h-12 px-6 bg-white text-black font-bold rounded-full hover:bg-zinc-200 transition-colors"
-        >
-          Search
-        </button>
-      </div>
-    </form>
+    </div>
   );
 };

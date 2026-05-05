@@ -1,4 +1,4 @@
-import { Language, ContentItem, Category } from './types';
+import { Language, ContentItem, Category, User } from './types';
 
 // This is a list of all the languages we support in our app.
 // Each one has a name, a greeting, and a background image.
@@ -56,112 +56,84 @@ export const LANGUAGES: Language[] = [
 // These are the four types of content we can have in our library.
 export const CATEGORIES: Category[] = ['Articles', 'Audio', 'Video', 'Books'];
 
+// Initial set of users for the platform.
+export const INITIAL_USERS: User[] = [
+  {
+    id: 'admin_1',
+    email: 'admin@namibia.org',
+    name: 'Platform Administrator',
+    role: 'admin',
+    status: 'approved',
+    createdAt: new Date('2024-01-01').toISOString()
+  },
+  {
+    id: 'user_1',
+    email: 'scholar@edu.na',
+    name: 'John Doe',
+    role: 'user',
+    status: 'approved',
+    intent: 'I am conducting research on northern Namibian dialects.',
+    createdAt: new Date().toISOString()
+  }
+];
+
 // This is our "database" of items. In a real app, this would come from a server.
 // For now, we use this "Mock" data to show how the app looks with content.
 export const MOCK_CONTENT: ContentItem[] = [
   {
     id: '1',
-    title: 'History of Etosha',
-    category: 'Articles',
+    title: 'Oshiwambo Oral Traditions: The Epupa Falls Legends',
+    category: 'Audio',
     languageId: 'oshiwambo',
-    description: 'A deep dive into the history of the Etosha Pan and its significance to the Aawambo people.'
+    description: 'A collection of oral histories recorded near the Epupa Falls, detailing the spiritual significance of the water for the Himba and Zemba people.',
+    thumbnail: 'https://images.unsplash.com/photo-1489392191049-fc10c97e64b6?auto=format&fit=crop&q=80&w=300',
+    author: 'Elder M. Kambonde',
+    duration: '12:45',
+    date: 'January 2024',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+    transcript: 'Welcome to this recording of the Epupa Falls legends. These falls are not just a geographical feature, but a living ancestor. The mist rising from the falls is said to be the breath of the spirits...'
   },
   {
     id: '2',
-    title: 'Traditional Herero Music',
+    title: 'Traditional Herero Praise Songs (Omitandu)',
     category: 'Audio',
     languageId: 'otjiherero',
-    description: 'A collection of folk songs from the Omaheke region, featuring traditional vocal harmonies.'
+    description: 'A collection of folk songs from the Omaheke region, featuring traditional vocal harmonies and cattle praise poetry.',
+    author: 'Samuel Maharero Choir',
+    duration: '08:15',
+    date: 'December 2023',
+    url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+    transcript: 'The Omitandu is a form of poetry and song that celebrates the ancestry and achievements of individuals and their lineages. In this recording, we hear the praises of the great herds of the East...'
   },
   {
     id: '3',
-    title: 'Damara Storytelling',
-    category: 'Video',
+    title: 'The Phonology of Khoekhoegowab Clicks',
+    category: 'Articles',
     languageId: 'khoekhoegowab',
-    description: 'Elders sharing ancient tales around the fire, preserved for future generations.'
+    description: 'A deep linguistic analysis of the four primary click sounds and their releases in the Nama language.',
+    author: 'Dr. L. Nama',
+    date: 'March 2024',
+    transcript: 'Khoekhoegowab is famous for its intricate system of click consonants. There are four primary click types used in this language: dental, alveolar, lateral, and palatal. Each one carries a unique semantic weight...'
   },
   {
     id: '4',
-    title: 'Zambezi River Guide',
+    title: 'Zambezi River Guide: Flora and Fauna',
     category: 'Books',
     languageId: 'silozi',
-    description: 'A comprehensive guide to the flora and fauna of the Zambezi, written in Silozi.'
+    description: 'A comprehensive guide to the unique ecosystem of the Zambezi region, preserved in the Silozi language.',
+    thumbnail: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&q=80&w=300',
+    author: 'Prof. S. Mukalani',
+    date: 'February 2024',
+    transcript: 'The Zambezi region represents one of the most biodiverse areas in Namibia. This book catalogs over 400 species of birds and mammals found along the river banks...'
   },
   {
     id: '5',
-    title: 'Kavango Woodcarving',
-    category: 'Articles',
+    title: 'Kavango Woodcarving Techniques',
+    category: 'Video',
     languageId: 'rukwangali',
-    description: 'The art and technique of traditional woodcarving in the Kavango regions.'
-  },
-  {
-    id: '6',
-    title: 'Oshiwambo Proverbs',
-    category: 'Books',
-    languageId: 'oshiwambo',
-    description: 'A collection of wisdom passed down through generations in the form of proverbs.'
-  },
-  {
-    id: '7',
-    title: 'The Great Nama Revolt',
-    category: 'Articles',
-    languageId: 'khoekhoegowab',
-    description: 'Historical account of the resistance against colonial forces.'
-  },
-  {
-    id: '8',
-    title: 'Otjiherero Language Basics',
-    category: 'Books',
-    languageId: 'otjiherero',
-    description: 'An introductory guide to learning the Otjiherero language.'
-  },
-  {
-    id: '9',
-    title: 'Caprivi Wetlands Documentary',
-    category: 'Video',
-    languageId: 'silozi',
-    description: 'Visual exploration of the unique ecosystem in the Zambezi region.'
-  },
-  {
-    id: '10',
-    title: 'Kavango Fishing Songs',
-    category: 'Audio',
-    languageId: 'rukwangali',
-    description: 'Rhythmic songs sung by fishermen along the Okavango River.'
-  },
-  {
-    id: '11',
-    title: 'Traditional Oshiwambo Cuisine',
-    category: 'Articles',
-    languageId: 'oshiwambo',
-    description: 'Recipes and cultural significance of traditional foods like Mahangu.'
-  },
-  {
-    id: '12',
-    title: 'Herero Cattle Culture',
-    category: 'Video',
-    languageId: 'otjiherero',
-    description: 'A documentary on the central role of cattle in Herero society.'
-  },
-  {
-    id: '13',
-    title: 'Oshiwambo Wedding Traditions',
-    category: 'Video',
-    languageId: 'oshiwambo',
-    description: 'A visual guide to the traditional wedding ceremonies of the Aawambo people.'
-  },
-  {
-    id: '14',
-    title: 'Nama Musical Bow',
-    category: 'Audio',
-    languageId: 'khoekhoegowab',
-    description: 'The unique sounds of the traditional musical bow used by the Nama people.'
-  },
-  {
-    id: '15',
-    title: 'Zambezi Basket Weaving',
-    category: 'Articles',
-    languageId: 'silozi',
-    description: 'The intricate patterns and meanings behind traditional basket weaving in the Zambezi.'
+    description: 'Visual documentation of the traditional woodcarving process in the Kavango regions.',
+    author: 'Kavango Arts Collective',
+    duration: '15:20',
+    date: 'January 2024'
   }
 ];
