@@ -1,0 +1,148 @@
+{
+  "info": {
+    "name": "Digital Language Repository API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection for testing backend API routes exposed by the frontend API wrapper definitions."
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "GET /api/languages",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/languages",
+          "host": ["{{base_url}}"],
+          "path": ["api","languages"]
+        }
+      }
+    },
+    {
+      "name": "POST /api/languages",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"iso_code\": \"en\",\n  \"name\": \"English\",\n  \"local_name\": \"English\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/languages",
+          "host": ["{{base_url}}"],
+          "path": ["api","languages"]
+        }
+      }
+    },
+    {
+      "name": "GET /api/recordings",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/recordings",
+          "host": ["{{base_url}}"],
+          "path": ["api","recordings"]
+        }
+      }
+    },
+    {
+      "name": "GET /api/recordings/:id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/recordings/:id",
+          "host": ["{{base_url}}"],
+          "path": ["api","recordings",":id"]
+        }
+      }
+    },
+    {
+      "name": "POST /api/recordings",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Sample Recording\",\n  \"language_id\": \"LANG_ID_PLACEHOLDER\",\n  \"description\": \"Test recording description\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/recordings",
+          "host": ["{{base_url}}"],
+          "path": ["api","recordings"]
+        }
+      }
+    },
+    {
+      "name": "GET /api/tags",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/tags",
+          "host": ["{{base_url}}"],
+          "path": ["api","tags"]
+        }
+      }
+    },
+    {
+      "name": "POST /api/tags",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Sample Tag\",\n  \"slug\": \"sample-tag\",\n  \"category\": \"example\",\n  \"description\": \"This is a sample tag.\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/tags",
+          "host": ["{{base_url}}"],
+          "path": ["api","tags"]
+        }
+      }
+    },
+    {
+      "name": "GET /api/recordings/:id/transcripts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/recordings/:id/transcripts",
+          "host": ["{{base_url}}"],
+          "path": ["api","recordings",":id","transcripts"]
+        }
+      }
+    },
+    {
+      "name": "POST /api/recordings/:id/transcripts",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"This is a transcript sample.\",\n  \"language_id\": \"LANG_ID_PLACEHOLDER\",\n  \"is_translation\": false\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/recordings/:id/transcripts",
+          "host": ["{{base_url}}"],
+          "path": ["api","recordings",":id","transcripts"]
+        }
+      }
+    }
+  ]
+}
