@@ -1,25 +1,26 @@
-import { supabase } from '../../../lib/supabase'
+import { supabasePublic, supabaseAdmin } from '../../../lib/supabase'
+import { requireAdmin } from '../../../lib/auth'
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
 
-  const category = searchParams.get('category')
-  const search = searchParams.get('search')
-
-  let query = supabase
-    .from('tags')
-    .select('*')
-    .order('name', { ascending: true })
-
-  if (category) {
-    query = query.eq('category', category)
-  }
-
-  if (search) {
-    query = query.ilike('name', `%${search}%`)
-  }
-
-  const { data, error } = await query
+  const { data, error } = await supabasePublic
+    .from('recording_tags')
+    .select(`
+      tag_id,
+      tagged_at,
+      tags (
+        id,
+        name,
+        slug,
+        category,
+        description
+      )
+    `)
+    .eq('recording_id', id)
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
@@ -28,25 +29,37 @@ export async function GET(request: Request) {
   return Response.json({ data })
 }
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+
+  const auth = await requireUser(request)
+
+  if (auth.error || !auth.user || !auth.token) {
+    return Response.json({ error: auth.error }, { status: 401 })
+  }
+
+  const supabase = createUserClient(auth.token)
+
   try {
     const body = await request.json()
-    const { name, slug, category, description } = body
+    const { tag_id } = body
 
-    if (!name || !slug) {
+    if (!tag_id) {
       return Response.json(
-        { error: 'name and slug are required' },
+        { error: 'tag_id is required' },
         { status: 400 }
       )
     }
 
     const { data, error } = await supabase
-      .from('tags')
+      .from('recording_tags')
       .insert({
-        name,
-        slug,
-        category,
-        description,
+        recording_id: id,
+        tag_id,
+        tagged_by: auth.user.id,
       })
       .select()
       .single()
@@ -56,7 +69,7 @@ export async function POST(request: Request) {
     }
 
     return Response.json({
-      message: 'Tag created successfully',
+      message: 'Tag applied to recording',
       data,
     })
   } catch {

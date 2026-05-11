@@ -1,10 +1,32 @@
-import { supabase } from '../../../lib/supabase'
+import { supabasePublic, createUserClient } from '../../../lib/supabase'
+import { requireUser } from '../../../lib/auth'
 
-export async function GET() {
-  const { data, error } = await supabase
+/**
+ * GET → public (only published recordings)
+ */
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+
+  const status = searchParams.get('status')
+  const language = searchParams.get('language')
+
+  let query = supabasePublic
     .from('recordings')
     .select('*')
-    .eq('status', 'published')
+    .order('created_at', { ascending: false })
+
+  // public default
+  if (status) {
+    query = query.eq('status', status)
+  } else {
+    query = query.eq('status', 'published')
+  }
+
+  if (language) {
+    query = query.eq('language_id', language)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
@@ -13,7 +35,18 @@ export async function GET() {
   return Response.json({ data })
 }
 
+/**
+ * POST → requires logged-in user
+ */
 export async function POST(request: Request) {
+  const auth = await requireUser(request)
+
+  if (auth.error || !auth.user || !auth.token) {
+    return Response.json({ error: auth.error }, { status: 401 })
+  }
+
+  const supabase = createUserClient(auth.token)
+
   try {
     const body = await request.json()
     const { title, description, language_id } = body
@@ -31,6 +64,7 @@ export async function POST(request: Request) {
         title,
         description,
         language_id,
+        uploaded_by: auth.user.id, 
         status: 'pending',
       })
       .select()

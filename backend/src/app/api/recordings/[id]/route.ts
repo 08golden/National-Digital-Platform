@@ -1,4 +1,5 @@
-import { supabase } from '../../../../lib/supabase'
+import { supabasePublic, createUserClient } from '../../../../lib/supabase'
+import { getBearerToken } from '../../../../lib/auth'
 
 export async function GET(
   request: Request,
@@ -6,7 +7,10 @@ export async function GET(
 ) {
   const { id } = await params
 
-  const { data, error } = await supabase
+  const token = getBearerToken(request)
+  const supabaseClient = token ? createUserClient(token) : supabasePublic
+
+  const { data, error } = await supabaseClient
     .from('recordings')
     .select('*')
     .eq('id', id)

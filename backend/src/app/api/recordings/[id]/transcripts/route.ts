@@ -1,4 +1,5 @@
-import { supabase } from '../../../../../lib/supabase'
+import { supabasePublic, createUserClient } from '../../../../../lib/supabase'
+import { requireUser } from '../../../../../lib/auth'
 
 export async function GET(
   request: Request,
@@ -6,7 +7,7 @@ export async function GET(
 ) {
   const { id } = await params
 
-  const { data, error } = await supabase
+  const { data, error } = await supabasePublic
     .from('transcripts')
     .select('*')
     .eq('recording_id', id)
@@ -25,6 +26,14 @@ export async function POST(
 ) {
   const { id } = await params
 
+  const auth = await requireUser(request)
+
+  if (auth.error || !auth.user || !auth.token) {
+    return Response.json({ error: auth.error }, { status: 401 })
+  }
+
+  const supabase = createUserClient(auth.token)
+
   try {
     const body = await request.json()
     const { content, language_id, is_translation, source_language_id } = body
@@ -40,11 +49,13 @@ export async function POST(
       .from('transcripts')
       .insert({
         recording_id: id,
+        created_by: auth.user.id,
         content,
         language_id,
         is_translation: is_translation ?? false,
         source_language_id: source_language_id ?? null,
         status: 'draft',
+        metadata: {},
       })
       .select()
       .single()
