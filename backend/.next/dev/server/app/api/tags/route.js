@@ -1,0 +1,10 @@
+var R=require("../../../chunks/[turbopack]_runtime.js")("server/app/api/tags/route.js")
+R.c("server/chunks/0..m_GitHub_Digital-Language-Repository_backend_src_app_api_tags_route_ts_0l~ibvj._.js")
+R.c("server/chunks/12rj_next_dist_0vz6wl0._.js")
+R.c("server/chunks/12rj_@supabase_postgrest-js_dist_index_mjs_0jm3uus._.js")
+R.c("server/chunks/12rj_@supabase_auth-js_dist_module_0lfg349._.js")
+R.c("server/chunks/12rj_0vn7mma._.js")
+R.c("server/chunks/[root-of-the-server]__0l55ab-._.js")
+R.c("server/chunks/0y86_backend__next-internal_server_app_api_tags_route_actions_0bs~a.w.js")
+R.m("[project]/OneDrive - NUST/Documents/GitHub/Digital-Language-Repository/backend/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/OneDrive - NUST/Documents/GitHub/Digital-Language-Repository/backend/src/app/api/tags/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/OneDrive - NUST/Documents/GitHub/Digital-Language-Repository/backend/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/OneDrive - NUST/Documents/GitHub/Digital-Language-Repository/backend/src/app/api/tags/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports
