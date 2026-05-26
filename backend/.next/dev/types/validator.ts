@@ -56,6 +56,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../../src/app/api/languages/[iso_code]/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/languages/[iso_code]">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/languages/[iso_code]/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../../src/app/api/languages/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/languages">> = Specific
@@ -105,6 +114,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/recordings">> = Specific
   const handler = {} as typeof import("../../../src/app/api/recordings/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../../src/app/api/tags/[tagId]/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/tags/[tagId]">> = Specific
+  const handler = {} as typeof import("../../../src/app/api/tags/[tagId]/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
