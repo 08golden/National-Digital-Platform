@@ -2,14 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { AppUser } from '../types';
-import { Check, X, UserCheck, Clock, ShieldAlert } from 'lucide-react';
+import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabaseClient';
+import { ModerationTab } from './ModerationTab';
+import { UploadsTab } from './UploadsTab';
 
 export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { appUser } = useAuth();
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'users' | 'moderation' | 'uploads'>('users');
 
   useEffect(() => {
     fetchUsers();
@@ -17,9 +20,7 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const fetchUsers = async () => {
     const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
-    if (!error && data) {
-      setAllUsers(data);
-    }
+    if (!error && data) setAllUsers(data);
     setLoading(false);
   };
 
@@ -33,21 +34,21 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     fetchUsers();
   };
 
+  if (appUser?.role !== 'admin') return null;
+
   const admins = allUsers.filter(u => u.role === 'admin');
   const contributors = allUsers.filter(u => u.role === 'contributor');
   const viewers = allUsers.filter(u => u.role === 'viewer');
 
-  if (appUser?.role !== 'admin') return null;
+  const mockUploads: any[] = [];
+  const mockModerationFiles: any[] = [];
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-8"
     >
       <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={onClose} />
-      
       <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 30 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -60,8 +61,8 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <ShieldAlert size={32} />
             </div>
             <div>
-              <h2 className="text-2xl font-display font-bold tracking-tight">User Management</h2>
-              <p className="text-sm text-white/30 uppercase tracking-widest font-bold">Admin Console</p>
+              <h2 className="text-2xl font-display font-bold tracking-tight">Admin Dashboard</h2>
+              <p className="text-sm text-white/30 uppercase tracking-widest font-bold">Full Control</p>
             </div>
           </div>
           <button onClick={onClose} className="w-10 h-10 glass rounded-full flex items-center justify-center hover:bg-white/10 transition-all text-white/40 hover:text-white">
@@ -69,62 +70,106 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 md:p-10 space-y-12 custom-scrollbar">
-          {loading ? (
-            <div className="text-center py-20 text-white/40">Loading users...</div>
-          ) : (
-            <>
-              <section>
-                <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-amber-500 mb-4">Admins</h3>
-                {admins.map(u => (
-                  <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
-                    <div>
-                      <p className="font-bold">{u.display_name || u.username}</p>
-                      <p className="text-sm text-white/40">{u.email}</p>
+        <div className="flex gap-2 px-8 pt-6 border-b border-white/5">
+          {(['users', 'moderation', 'uploads'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "px-6 py-3 rounded-t-2xl font-bold text-sm uppercase tracking-wider transition-all",
+                activeTab === tab
+                  ? "bg-amber-500 text-black shadow-xl"
+                  : "text-white/50 hover:text-white hover:bg-white/5"
+              )}
+            >
+              {tab === 'users' && <><UserCheck size={16} className="inline mr-2" /> Users</>}
+              {tab === 'moderation' && <><MessageSquare size={16} className="inline mr-2" /> Moderation</>}
+              {tab === 'uploads' && <><Upload size={16} className="inline mr-2" /> Uploads</>}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 md:p-10 custom-scrollbar">
+          {activeTab === 'users' && (
+            loading ? (
+              <div className="text-center py-20 text-white/40">Loading users...</div>
+            ) : (
+              <div className="space-y-10">
+                <section>
+                  <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-amber-500 mb-4">Admins</h3>
+                  {admins.map(u => (
+                    <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
+                      <div>
+                        <p className="font-bold">{u.display_name || u.username}</p>
+                        <p className="text-sm text-white/40">{u.email}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => toggleActive(u.id, !u.is_active)}
+                          className={cn("px-3 py-1 rounded-lg text-xs", u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
+                          {u.is_active ? 'Active' : 'Inactive'}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => toggleActive(u.id, !u.is_active)} className={cn("px-3 py-1 rounded-lg text-xs", u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
-                        {u.is_active ? 'Active' : 'Inactive'}
-                      </button>
+                  ))}
+                </section>
+
+                <section>
+                  <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-blue-400 mb-4">Contributors</h3>
+                  {contributors.map(u => (
+                    <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
+                      <div>
+                        <p className="font-bold">{u.display_name || u.username}</p>
+                        <p className="text-sm text-white/40">{u.email}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => updateRole(u.id, 'viewer')} className="px-3 py-1 bg-white/5 rounded-lg text-xs">Demote</button>
+                        <button onClick={() => toggleActive(u.id, !u.is_active)}
+                          className={cn("px-3 py-1 rounded-lg text-xs", u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
+                          {u.is_active ? 'Active' : 'Inactive'}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </section>
-              <section>
-                <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-blue-400 mb-4">Contributors</h3>
-                {contributors.map(u => (
-                  <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
-                    <div>
-                      <p className="font-bold">{u.display_name || u.username}</p>
-                      <p className="text-sm text-white/40">{u.email}</p>
+                  ))}
+                </section>
+
+                <section>
+                  <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">Viewers</h3>
+                  {viewers.map(u => (
+                    <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
+                      <div>
+                        <p className="font-bold">{u.display_name || u.username}</p>
+                        <p className="text-sm text-white/40">{u.email}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => updateRole(u.id, 'contributor')} className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-xs">Promote</button>
+                        <button onClick={() => toggleActive(u.id, !u.is_active)}
+                          className={cn("px-3 py-1 rounded-lg text-xs", u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
+                          {u.is_active ? 'Active' : 'Inactive'}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => updateRole(u.id, 'viewer')} className="px-3 py-1 bg-white/5 rounded-lg text-xs">Demote</button>
-                      <button onClick={() => toggleActive(u.id, !u.is_active)} className={cn("px-3 py-1 rounded-lg text-xs", u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
-                        {u.is_active ? 'Active' : 'Inactive'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </section>
-              <section>
-                <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">Viewers</h3>
-                {viewers.map(u => (
-                  <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
-                    <div>
-                      <p className="font-bold">{u.display_name || u.username}</p>
-                      <p className="text-sm text-white/40">{u.email}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => updateRole(u.id, 'contributor')} className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-xs">Promote</button>
-                      <button onClick={() => toggleActive(u.id, !u.is_active)} className={cn("px-3 py-1 rounded-lg text-xs", u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
-                        {u.is_active ? 'Active' : 'Inactive'}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </section>
-            </>
+                  ))}
+                </section>
+              </div>
+            )
+          )}
+
+          {activeTab === 'moderation' && (
+            <ModerationTab
+              uploads={mockModerationFiles}
+              onSelectFile={() => {}}
+              onDeleteFiles={() => {}}
+              onChangeStatus={() => {}}
+            />
+          )}
+
+          {activeTab === 'uploads' && (
+            <UploadsTab
+              uploads={mockUploads}
+              onDeleteFiles={() => {}}
+              onChangeStatus={() => {}}
+              onSelectFile={() => {}}
+            />
           )}
         </div>
       </motion.div>

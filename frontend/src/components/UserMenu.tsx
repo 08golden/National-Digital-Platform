@@ -1,3 +1,4 @@
+// UserMenu.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogOut, Upload, Shield, ChevronDown, User } from 'lucide-react';
@@ -9,9 +10,10 @@ interface UserMenuProps {
   onOpenUpload: () => void;
   onOpenAdmin: () => void;
   hasPendingUsers: boolean;
+  onOpenSettings?: () => void;
 }
 
-export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout, onOpenUpload, onOpenAdmin, hasPendingUsers }) => {
+export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout, onOpenUpload, onOpenAdmin, hasPendingUsers, onOpenSettings }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -83,6 +85,18 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout, onOpenUpload
                 </button>
               )}
             </div>
+
+            {onOpenSettings && (
+              <div className="p-2 border-t border-white/5">
+                <button
+                  onClick={() => { onOpenSettings(); setIsOpen(false); }}
+                  className="flex items-center gap-3 w-full px-4 py-3 hover:bg-white/10 rounded-xl transition-all text-white/60 hover:text-white"
+                >
+                  <User size={18} />
+                  <span className="text-sm font-medium">Settings</span>
+                </button>
+              </div>
+            )}
 
             <div className="p-2 border-t border-white/5">
               <button

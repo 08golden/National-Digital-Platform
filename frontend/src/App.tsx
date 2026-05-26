@@ -1,3 +1,4 @@
+// App.tsx
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Library, Upload as UploadIcon, Info, LayoutGrid, Sparkles } from 'lucide-react';
@@ -10,17 +11,19 @@ import { UploadModal } from './components/UploadModal';
 import { AuthGate } from './components/AuthGate';
 import { AdminPanel } from './components/AdminPanel';
 import { UserMenu } from './components/UserMenu';
+import { UserSettings } from './components/UserSettings';
 import { LANGUAGES } from './constants';
 import { useAuth } from './contexts/AuthContext';
-import { AppUser } from './types';
+import { AppUser, Category } from './types';
 
 export default function App() {
   const { appUser, signOut, loading } = useAuth();
   const [selectedLanguageId, setSelectedLanguageId] = useState('all');
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
   const [showLibrary, setShowLibrary] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -37,6 +40,7 @@ export default function App() {
     await signOut();
     setShowAdminPanel(false);
     setShowLibrary(false);
+    setShowSettings(false);
   };
 
   const selectedLanguage = LANGUAGES.find(l => l.id === selectedLanguageId) || LANGUAGES[0];
@@ -126,6 +130,7 @@ export default function App() {
               onLogout={handleLogout}
               onOpenUpload={() => setShowUpload(true)}
               onOpenAdmin={() => setShowAdminPanel(true)}
+              onOpenSettings={() => setShowSettings(true)}
               hasPendingUsers={false}
             />
           </div>
@@ -211,6 +216,9 @@ export default function App() {
           <AdminPanel 
             onClose={() => setShowAdminPanel(false)}
           />
+        )}
+        {showSettings && (
+          <UserSettings onClose={() => setShowSettings(false)} user={appUser} />
         )}
       </AnimatePresence>
 
