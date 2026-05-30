@@ -5,238 +5,294 @@
 -- Safe to re-run — all inserts use ON CONFLICT DO NOTHING.
 -- ============================================================
 
-DO $$
-DECLARE
-    fid UUID;
+-- ── license ──────────────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('CC-BY-4.0',           'CC BY 4.0 — Attribution',                    0),
+    ('CC-BY-SA-4.0',        'CC BY-SA 4.0 — Attribution ShareAlike',       1),
+    ('CC-BY-NC-4.0',        'CC BY-NC 4.0 — Non-Commercial',               2),
+    ('CC-BY-NC-SA-4.0',     'CC BY-NC-SA 4.0 — Non-Commercial ShareAlike', 3),
+    ('CC-BY-ND-4.0',        'CC BY-ND 4.0 — No Derivatives',               4),
+    ('CC0-1.0',             'CC0 1.0 — Public Domain',                     5),
+    ('TK-Community-Only',   'TK Community Only',                           6),
+    ('TK-Seasonal',         'TK Seasonal',                                 7),
+    ('TK-Secret-Sacred',    'TK Secret / Sacred (no external access)',      8),
+    ('All-Rights-Reserved', 'All Rights Reserved',                         9),
+    ('custom',              'Custom — see access notes',                   10)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'license'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- Inserts options for the field identified by p_key
-    PROCEDURE seed_options(p_key TEXT, p_options JSONB) AS $$
-    DECLARE
-        opt JSONB;
-        i   INTEGER := 0;
-    BEGIN
-        SELECT id INTO fid FROM public.metadata_fields WHERE field_key = p_key;
-        IF fid IS NULL THEN
-            RAISE NOTICE 'metadata_field not found for key: %', p_key;
-            RETURN;
-        END IF;
-        FOR opt IN SELECT * FROM jsonb_array_elements(p_options) LOOP
-            INSERT INTO public.metadata_field_options
-                (field_id, value, label, display_order)
-            VALUES (fid, opt->>'value', opt->>'label', i)
-            ON CONFLICT (field_id, value) DO NOTHING;
-            i := i + 1;
-        END LOOP;
-    END;
+-- ── visibility ───────────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('public',     'Public — visible to everyone',                0),
+    ('restricted', 'Restricted — authenticated users only',       1),
+    ('private',    'Private — contributor and admins only',       2),
+    ('embargoed',  'Embargoed — hidden until a set date',         3)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'visibility'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-BEGIN
+-- ── cultural_sensitivity ─────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('open',          'Open — no cultural restrictions',                    0),
+    ('low',           'Low — minor sensitivity',                            1),
+    ('medium',        'Medium — researcher access only',                    2),
+    ('high',          'High — community members only',                      3),
+    ('secret_sacred', 'Secret / Sacred — community authority controls access', 4)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'cultural_sensitivity'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── license ──────────────────────────────────────────────
-    CALL seed_options('license', '[
-        {"value":"CC-BY-4.0",           "label":"CC BY 4.0 — Attribution"},
-        {"value":"CC-BY-SA-4.0",        "label":"CC BY-SA 4.0 — Attribution ShareAlike"},
-        {"value":"CC-BY-NC-4.0",        "label":"CC BY-NC 4.0 — Non-Commercial"},
-        {"value":"CC-BY-NC-SA-4.0",     "label":"CC BY-NC-SA 4.0 — Non-Commercial ShareAlike"},
-        {"value":"CC-BY-ND-4.0",        "label":"CC BY-ND 4.0 — No Derivatives"},
-        {"value":"CC0-1.0",             "label":"CC0 1.0 — Public Domain"},
-        {"value":"TK-Community-Only",   "label":"TK Community Only"},
-        {"value":"TK-Seasonal",         "label":"TK Seasonal"},
-        {"value":"TK-Secret-Sacred",    "label":"TK Secret / Sacred (no external access)"},
-        {"value":"All-Rights-Reserved", "label":"All Rights Reserved"},
-        {"value":"custom",              "label":"Custom — see access notes"}
-    ]');
+-- ── community_consent ────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('consented',    'Consented — community approved deposit',    0),
+    ('pending',      'Pending — awaiting community approval',     1),
+    ('restricted',   'Restricted — community has applied restrictions', 2),
+    ('not_required', 'Not Required — no affiliated community',   3)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'community_consent'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── visibility ───────────────────────────────────────────
-    CALL seed_options('visibility', '[
-        {"value":"public",      "label":"Public — visible to everyone"},
-        {"value":"restricted",  "label":"Restricted — authenticated users only"},
-        {"value":"private",     "label":"Private — contributor and admins only"},
-        {"value":"embargoed",   "label":"Embargoed — hidden until a set date"}
-    ]');
+-- ── tk_label_codes ───────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('TK-Attribution',        'TK Attribution',         0),
+    ('TK-Clan',               'TK Clan',                1),
+    ('TK-Family',             'TK Family',              2),
+    ('TK-Community-Voice',    'TK Community Voice',     3),
+    ('TK-Creative',           'TK Creative',            4),
+    ('TK-Verified',           'TK Verified',            5),
+    ('TK-Non-Verified',       'TK Non-Verified',        6),
+    ('TK-Seasonal',           'TK Seasonal',            7),
+    ('TK-Women-General',      'TK Women General',       8),
+    ('TK-Men-General',        'TK Men General',         9),
+    ('TK-Secret-Sacred',      'TK Secret / Sacred',    10),
+    ('TK-Open',               'TK Open',               11),
+    ('BC-Provenance',         'BC Provenance',         12),
+    ('BC-Multiple-Community', 'BC Multiple Community', 13),
+    ('BC-Research',           'BC Research',           14),
+    ('BC-Commercialization',  'BC Commercialization',  15),
+    ('BC-Consent-Verified',   'BC Consent Verified',   16),
+    ('BC-Open',               'BC Open',               17)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'tk_label_codes'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── cultural_sensitivity ─────────────────────────────────
-    CALL seed_options('cultural_sensitivity', '[
-        {"value":"open",          "label":"Open — no cultural restrictions"},
-        {"value":"low",           "label":"Low — minor sensitivity"},
-        {"value":"medium",        "label":"Medium — researcher access only"},
-        {"value":"high",          "label":"High — community members only"},
-        {"value":"secret_sacred", "label":"Secret / Sacred — community authority controls access"}
-    ]');
+-- ── recording_context ────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('field',      'Field Recording',                0),
+    ('studio',     'Studio Recording',               1),
+    ('home',       'Home / Informal Setting',        2),
+    ('community',  'Community Event / Gathering',    3),
+    ('ceremonial', 'Ceremonial Context',             4),
+    ('online',     'Online / Remote Recording',      5),
+    ('elicited',   'Elicited / Structured Session',  6)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'recording_context'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── community_consent ────────────────────────────────────
-    CALL seed_options('community_consent', '[
-        {"value":"consented",    "label":"Consented — community approved deposit"},
-        {"value":"pending",      "label":"Pending — awaiting community approval"},
-        {"value":"restricted",   "label":"Restricted — community has applied restrictions"},
-        {"value":"not_required", "label":"Not Required — no affiliated community"}
-    ]');
+-- ── discourse_type ───────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('narrative',         'Narrative / Story',                  0),
+    ('personal_history',  'Personal History / Oral Biography',  1),
+    ('oral_tradition',    'Oral Tradition / Folklore',          2),
+    ('procedural',        'Procedural Text (how-to)',           3),
+    ('conversation',      'Spontaneous Conversation',           4),
+    ('interview',         'Interview',                         5),
+    ('song',              'Song',                               6),
+    ('ceremonial_speech', 'Ceremonial Speech / Prayer',         7),
+    ('wordlist',          'Word List / Elicitation',            8),
+    ('language_lesson',   'Language Teaching / Lesson',         9),
+    ('proverb',           'Proverbs / Idioms',                 10),
+    ('description',       'Description / Monologue',           11),
+    ('other',             'Other',                             12)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'discourse_type'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── tk_label_codes ───────────────────────────────────────
-    CALL seed_options('tk_label_codes', '[
-        {"value":"TK-Attribution",        "label":"TK Attribution"},
-        {"value":"TK-Clan",               "label":"TK Clan"},
-        {"value":"TK-Family",             "label":"TK Family"},
-        {"value":"TK-Community-Voice",    "label":"TK Community Voice"},
-        {"value":"TK-Creative",           "label":"TK Creative"},
-        {"value":"TK-Verified",           "label":"TK Verified"},
-        {"value":"TK-Non-Verified",       "label":"TK Non-Verified"},
-        {"value":"TK-Seasonal",           "label":"TK Seasonal"},
-        {"value":"TK-Women-General",      "label":"TK Women General"},
-        {"value":"TK-Men-General",        "label":"TK Men General"},
-        {"value":"TK-Secret-Sacred",      "label":"TK Secret / Sacred"},
-        {"value":"TK-Open",               "label":"TK Open"},
-        {"value":"BC-Provenance",         "label":"BC Provenance"},
-        {"value":"BC-Multiple-Community", "label":"BC Multiple Community"},
-        {"value":"BC-Research",           "label":"BC Research"},
-        {"value":"BC-Commercialization",  "label":"BC Commercialization"},
-        {"value":"BC-Consent-Verified",   "label":"BC Consent Verified"},
-        {"value":"BC-Open",               "label":"BC Open"}
-    ]');
+-- ── linguistic_type ──────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('primary_text',           'Primary Text',                  0),
+    ('lexicon',                'Lexicon / Dictionary',          1),
+    ('language_description',   'Language Description / Grammar',2),
+    ('language_documentation', 'Language Documentation',        3),
+    ('annotation',             'Annotation / Transcription',    4)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'linguistic_type'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── recording_context ────────────────────────────────────
-    CALL seed_options('recording_context', '[
-        {"value":"field",      "label":"Field Recording"},
-        {"value":"studio",     "label":"Studio Recording"},
-        {"value":"home",       "label":"Home / Informal Setting"},
-        {"value":"community",  "label":"Community Event / Gathering"},
-        {"value":"ceremonial", "label":"Ceremonial Context"},
-        {"value":"online",     "label":"Online / Remote Recording"},
-        {"value":"elicited",   "label":"Elicited / Structured Session"}
-    ]');
+-- ── speaker_proficiency ──────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('fluent_elder',    'Fluent Elder (first-language, high competence)', 0),
+    ('fluent_adult',    'Fluent Adult (first-language)',                  1),
+    ('semi_speaker',    'Semi-speaker (partial competence)',              2),
+    ('heritage',        'Heritage / Home Speaker',                       3),
+    ('learner',         'Language Learner',                              4),
+    ('second_language', 'Second-Language Speaker',                       5),
+    ('unknown',         'Unknown',                                       6)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'speaker_proficiency'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── discourse_type ───────────────────────────────────────
-    CALL seed_options('discourse_type', '[
-        {"value":"narrative",         "label":"Narrative / Story"},
-        {"value":"personal_history",  "label":"Personal History / Oral Biography"},
-        {"value":"oral_tradition",    "label":"Oral Tradition / Folklore"},
-        {"value":"procedural",        "label":"Procedural Text (how-to)"},
-        {"value":"conversation",      "label":"Spontaneous Conversation"},
-        {"value":"interview",         "label":"Interview"},
-        {"value":"song",              "label":"Song"},
-        {"value":"ceremonial_speech", "label":"Ceremonial Speech / Prayer"},
-        {"value":"wordlist",          "label":"Word List / Elicitation"},
-        {"value":"language_lesson",   "label":"Language Teaching / Lesson"},
-        {"value":"proverb",           "label":"Proverbs / Idioms"},
-        {"value":"description",       "label":"Description / Monologue"},
-        {"value":"other",             "label":"Other"}
-    ]');
+-- ── speaker_generation ───────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('elder', 'Elder (60+)',      0),
+    ('adult', 'Adult (30-59)',    1),
+    ('youth', 'Youth (15-29)',    2),
+    ('child', 'Child (under 15)', 3)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'speaker_generation'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── linguistic_type ──────────────────────────────────────
-    CALL seed_options('linguistic_type', '[
-        {"value":"primary_text",           "label":"Primary Text"},
-        {"value":"lexicon",                "label":"Lexicon / Dictionary"},
-        {"value":"language_description",   "label":"Language Description / Grammar"},
-        {"value":"language_documentation", "label":"Language Documentation"},
-        {"value":"annotation",             "label":"Annotation / Transcription"}
-    ]');
+-- ── speaker_gender ───────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('female',     'Female',           0),
+    ('male',       'Male',             1),
+    ('non_binary', 'Non-binary',       2),
+    ('prefer_not', 'Prefer not to say',3),
+    ('unknown',    'Unknown',          4)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'speaker_gender'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── speaker_proficiency ──────────────────────────────────
-    CALL seed_options('speaker_proficiency', '[
-        {"value":"fluent_elder",    "label":"Fluent Elder (first-language, high competence)"},
-        {"value":"fluent_adult",    "label":"Fluent Adult (first-language)"},
-        {"value":"semi_speaker",    "label":"Semi-speaker (partial competence)"},
-        {"value":"heritage",        "label":"Heritage / Home Speaker"},
-        {"value":"learner",         "label":"Language Learner"},
-        {"value":"second_language", "label":"Second-Language Speaker"},
-        {"value":"unknown",         "label":"Unknown"}
-    ]');
+-- ── speaker_age_range ────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('0-14',   '0-14',   0),
+    ('15-29',  '15-29',  1),
+    ('30-44',  '30-44',  2),
+    ('45-59',  '45-59',  3),
+    ('60-74',  '60-74',  4),
+    ('75+',    '75+',    5),
+    ('unknown','Unknown', 6)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'speaker_age_range'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── speaker_generation ───────────────────────────────────
-    CALL seed_options('speaker_generation', '[
-        {"value":"elder",  "label":"Elder (60+)"},
-        {"value":"adult",  "label":"Adult (30–59)"},
-        {"value":"youth",  "label":"Youth (15–29)"},
-        {"value":"child",  "label":"Child (under 15)"}
-    ]');
+-- ── recording_quality ────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('excellent', 'Excellent — broadcast quality',       0),
+    ('good',      'Good — clear speech throughout',      1),
+    ('fair',      'Fair — some audio issues',            2),
+    ('poor',      'Poor — significant degradation',      3)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'recording_quality'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── speaker_gender ───────────────────────────────────────
-    CALL seed_options('speaker_gender', '[
-        {"value":"female",     "label":"Female"},
-        {"value":"male",       "label":"Male"},
-        {"value":"non_binary", "label":"Non-binary"},
-        {"value":"prefer_not", "label":"Prefer not to say"},
-        {"value":"unknown",    "label":"Unknown"}
-    ]');
+-- ── background_noise ─────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('none',        'None',         0),
+    ('minimal',     'Minimal',      1),
+    ('moderate',    'Moderate',     2),
+    ('significant', 'Significant',  3)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'background_noise'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── speaker_age_range ────────────────────────────────────
-    CALL seed_options('speaker_age_range', '[
-        {"value":"0-14",   "label":"0–14"},
-        {"value":"15-29",  "label":"15–29"},
-        {"value":"30-44",  "label":"30–44"},
-        {"value":"45-59",  "label":"45–59"},
-        {"value":"60-74",  "label":"60–74"},
-        {"value":"75+",    "label":"75+"},
-        {"value":"unknown","label":"Unknown"}
-    ]');
+-- ── file_format ──────────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('wav',  'WAV',          0),
+    ('mp3',  'MP3',          1),
+    ('flac', 'FLAC',         2),
+    ('aac',  'AAC',          3),
+    ('ogg',  'OGG',          4),
+    ('mp4',  'MP4 (video)',  5),
+    ('mov',  'MOV (video)',  6),
+    ('webm', 'WebM (video)', 7)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'file_format'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── recording_quality ────────────────────────────────────
-    CALL seed_options('recording_quality', '[
-        {"value":"excellent", "label":"Excellent — broadcast quality"},
-        {"value":"good",      "label":"Good — clear speech throughout"},
-        {"value":"fair",      "label":"Fair — some audio issues"},
-        {"value":"poor",      "label":"Poor — significant degradation"}
-    ]');
+-- ── original_format ──────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('cassette',     'Cassette Tape',                  0),
+    ('reel',         'Reel-to-Reel Tape',              1),
+    ('dat',          'DAT (Digital Audio Tape)',        2),
+    ('minidisc',     'MiniDisc',                       3),
+    ('vinyl',        'Vinyl Record',                   4),
+    ('vhs',          'VHS Tape',                       5),
+    ('cd',           'CD / CD-ROM',                    6),
+    ('born_digital', 'Born Digital (no analogue original)', 7)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'original_format'
+ON CONFLICT (field_id, value) DO NOTHING;
 
-    -- ── background_noise ─────────────────────────────────────
-    CALL seed_options('background_noise', '[
-        {"value":"none",        "label":"None"},
-        {"value":"minimal",     "label":"Minimal"},
-        {"value":"moderate",    "label":"Moderate"},
-        {"value":"significant", "label":"Significant"}
-    ]');
-
-    -- ── file_format ──────────────────────────────────────────
-    CALL seed_options('file_format', '[
-        {"value":"wav",  "label":"WAV"},
-        {"value":"mp3",  "label":"MP3"},
-        {"value":"flac", "label":"FLAC"},
-        {"value":"aac",  "label":"AAC"},
-        {"value":"ogg",  "label":"OGG"},
-        {"value":"mp4",  "label":"MP4 (video)"},
-        {"value":"mov",  "label":"MOV (video)"},
-        {"value":"webm", "label":"WebM (video)"}
-    ]');
-
-    -- ── original_format ──────────────────────────────────────
-    CALL seed_options('original_format', '[
-        {"value":"cassette",     "label":"Cassette Tape"},
-        {"value":"reel",         "label":"Reel-to-Reel Tape"},
-        {"value":"dat",          "label":"DAT (Digital Audio Tape)"},
-        {"value":"minidisc",     "label":"MiniDisc"},
-        {"value":"vinyl",        "label":"Vinyl Record"},
-        {"value":"vhs",          "label":"VHS Tape"},
-        {"value":"cd",           "label":"CD / CD-ROM"},
-        {"value":"born_digital", "label":"Born Digital (no analogue original)"}
-    ]');
-
-    -- ── topics ───────────────────────────────────────────────
-    CALL seed_options('topics', '[
-        {"value":"greetings",      "label":"Greetings & Farewells"},
-        {"value":"kinship",        "label":"Kinship & Family"},
-        {"value":"food",           "label":"Food & Cooking"},
-        {"value":"nature",         "label":"Nature & Environment"},
-        {"value":"animals",        "label":"Animals"},
-        {"value":"plants",         "label":"Plants & Gathering"},
-        {"value":"body",           "label":"Body & Health"},
-        {"value":"spirituality",   "label":"Spirituality & Ceremony"},
-        {"value":"history",        "label":"History & Memory"},
-        {"value":"land",           "label":"Land & Territory"},
-        {"value":"law_governance", "label":"Law & Governance"},
-        {"value":"arts_crafts",    "label":"Arts & Crafts"},
-        {"value":"music_dance",    "label":"Music & Dance"},
-        {"value":"games",          "label":"Games & Recreation"},
-        {"value":"trade",          "label":"Trade & Economy"},
-        {"value":"education",      "label":"Education & Knowledge"},
-        {"value":"migration",      "label":"Migration & Movement"},
-        {"value":"numbers",        "label":"Numbers & Counting"},
-        {"value":"time",           "label":"Time & Calendar"},
-        {"value":"weather",        "label":"Weather & Seasons"},
-        {"value":"proverbs",       "label":"Proverbs & Idioms"},
-        {"value":"other",          "label":"Other"}
-    ]');
-
-END;
-$$;
+-- ── topics ───────────────────────────────────────────────────
+INSERT INTO public.metadata_field_options (field_id, value, label, display_order)
+SELECT mf.id, opts.value, opts.label, opts.ord
+FROM   public.metadata_fields mf
+CROSS JOIN (VALUES
+    ('greetings',      'Greetings & Farewells',    0),
+    ('kinship',        'Kinship & Family',          1),
+    ('food',           'Food & Cooking',            2),
+    ('nature',         'Nature & Environment',      3),
+    ('animals',        'Animals',                   4),
+    ('plants',         'Plants & Gathering',        5),
+    ('body',           'Body & Health',             6),
+    ('spirituality',   'Spirituality & Ceremony',   7),
+    ('history',        'History & Memory',          8),
+    ('land',           'Land & Territory',          9),
+    ('law_governance', 'Law & Governance',         10),
+    ('arts_crafts',    'Arts & Crafts',            11),
+    ('music_dance',    'Music & Dance',            12),
+    ('games',          'Games & Recreation',       13),
+    ('trade',          'Trade & Economy',          14),
+    ('education',      'Education & Knowledge',    15),
+    ('migration',      'Migration & Movement',     16),
+    ('numbers',        'Numbers & Counting',       17),
+    ('time',           'Time & Calendar',          18),
+    ('weather',        'Weather & Seasons',        19),
+    ('proverbs',       'Proverbs & Idioms',        20),
+    ('other',          'Other',                    21)
+) AS opts(value, label, ord)
+WHERE mf.field_key = 'topics'
+ON CONFLICT (field_id, value) DO NOTHING;
 
 -- ── Seed: Namibian indigenous communities ────────────────────
 INSERT INTO public.communities
@@ -254,8 +310,8 @@ VALUES
   ('Nama',            'Khoekhoegowab','NA','Hardap / ||Kharas',      'Namaland',
    '{"alternate_names":["Namaqua"]}'::JSONB),
 
-  ('Damara',          'ǂNūkhoen',    'NA', 'Kunene / Erongo',        'Damaraland',
-   '{"alternate_names":["ǂNūkhoen"]}'::JSONB),
+  ('Damara',          'Nukhoen',     'NA', 'Kunene / Erongo',        'Damaraland',
+   '{"alternate_names":["Nukhoen"]}'::JSONB),
 
   ('Himba',           'Himba',       'NA', 'Kunene',                 'Kaokoland',
    '{}'::JSONB),
