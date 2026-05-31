@@ -1,4 +1,4 @@
-import { supabasePublic, createUserClient } from '../../../../../lib/supabase'
+import { supabasePublic, createUserClient, supabaseAdmin } from '../../../../../lib/supabase'
 import { requireUser } from '../../../../../lib/auth'
 
 export async function GET(
@@ -22,34 +22,28 @@ export async function GET(
   return Response.json({ data })
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
-
-  const auth = await requireUser(request)
-
-  if (auth.error || !auth.user || !auth.token) {
-    return Response.json({ error: auth.error }, { status: 401 })
-  }
-
-  const supabase = createUserClient(auth.token)
-
+export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { tag_id } = body
+    const { name, slug, category, description, metadata } = body
 
-    if (!tag_id) {
-      return Response.json({ error: 'tag_id is required' }, { status: 400 })
+    if (!name || !slug) {
+      return Response.json(
+        { error: 'name and slug are required' },
+        { status: 400 }
+      )
     }
 
-    const { data, error } = await supabase
-      .from('recording_tags')
+    const { data, error } = await supabaseAdmin
+      .from('tags')
       .insert({
-        recording_id: id,
-        tag_id,
-        tagged_by: auth.user.id,
+        name,
+        slug,
+        category,
+        description,
+        metadata: metadata || {}, 
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single()

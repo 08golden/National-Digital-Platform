@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         family,
         region,
         endangerment_level,
-        metadata,
+        metadata: metadata || {},
         is_active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

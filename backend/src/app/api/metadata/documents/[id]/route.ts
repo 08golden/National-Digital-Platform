@@ -1,5 +1,5 @@
-import { supabasePublic, supabaseAdmin, createUserClient } from '../.././../../lib/supabase'
-import { getBearerToken, requireAdmin, requireUser } from '.././../../../lib/auth'
+import { supabasePublic, supabaseAdmin, createUserClient } from '../../../../../lib/supabase'
+import { getBearerToken, requireAdmin, requireUser } from '../../../../../lib/auth'
 
 export async function GET(
   request: Request,
@@ -11,20 +11,20 @@ export async function GET(
   const client = token ? createUserClient(token) : supabasePublic
 
   const { data, error } = await client
-    .from('languages')
+    .from('documents')
     .select('id, metadata')
     .eq('id', id)
     .single()
 
   if (error) {
     if (error.code === 'PGRST116') {
-      return Response.json({ error: 'Language not found' }, { status: 404 })
+      return Response.json({ error: 'Document not found' }, { status: 404 })
     }
     return Response.json({ error: error.message }, { status: 500 })
   }
 
   return Response.json({
-    table: 'languages',
+    table: 'documents',
     id: data.id,
     metadata: data.metadata ?? {},
   })
@@ -36,10 +36,13 @@ export async function PATCH(
 ) {
   const { id } = await params
 
-  // Check admin access
   const adminAuth = await requireAdmin(request)
-  if (adminAuth.error) {
-    return Response.json({ error: adminAuth.error }, { status: 401 })
+  const isAdmin = !adminAuth.error
+
+  // Documents can be edited by uploader or admin
+  const userAuth = isAdmin ? adminAuth : await requireUser(request)
+  if (userAuth.error || !userAuth.user || !userAuth.token) {
+    return Response.json({ error: userAuth.error ?? 'Unauthorized' }, { status: 401 })
   }
 
   let body: Record<string, unknown>
@@ -57,21 +60,37 @@ export async function PATCH(
     return Response.json({ error: 'No metadata fields provided' }, { status: 400 })
   }
 
-  
+  // Check ownership for non-admins
+  if (!isAdmin) {
+    const { data: existing, error: fetchErr } = await supabasePublic
+      .from('documents')
+      .select('uploaded_by')
+      .eq('id', id)
+      .single()
+
+    if (fetchErr || !existing) {
+      return Response.json({ error: 'Document not found' }, { status: 404 })
+    }
+    if (existing.uploaded_by !== userAuth.user.id) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
+  }
+
+  // Get current metadata
   const { data: current, error: readErr } = await supabaseAdmin
-    .from('languages')
+    .from('documents')
     .select('id, metadata')
     .eq('id', id)
     .single()
 
   if (readErr || !current) {
     if (readErr?.code === 'PGRST116') {
-      return Response.json({ error: 'Language not found' }, { status: 404 })
+      return Response.json({ error: 'Document not found' }, { status: 404 })
     }
-    return Response.json({ error: readErr?.message ?? 'Language not found' }, { status: 500 })
+    return Response.json({ error: readErr?.message ?? 'Document not found' }, { status: 500 })
   }
 
-  
+  // Merge metadata
   const existing = (current.metadata ?? {}) as Record<string, unknown>
   const merged: Record<string, unknown> = { ...existing }
 
@@ -83,9 +102,9 @@ export async function PATCH(
     }
   }
 
-
+  // Update
   const { data: updated, error: writeErr } = await supabaseAdmin
-    .from('languages')
+    .from('documents')
     .update({ metadata: merged, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select('id, metadata')
@@ -96,8 +115,8 @@ export async function PATCH(
   }
 
   return Response.json({
-    message: 'Metadata updated on languages',
-    table: 'languages',
+    message: 'Metadata updated on documents',
+    table: 'documents',
     id: updated.id,
     metadata: updated.metadata,
   })
