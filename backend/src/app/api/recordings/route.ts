@@ -1,9 +1,7 @@
 import { supabasePublic, createUserClient } from '../../../lib/supabase'
 import { requireUser } from '../../../lib/auth'
 
-/**
- * GET → public (only published recordings)
- */
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
 
@@ -15,7 +13,7 @@ export async function GET(request: Request) {
     .select('*')
     .order('created_at', { ascending: false })
 
-  // public default
+ 
   if (status) {
     query = query.eq('status', status)
   } else {
@@ -35,9 +33,7 @@ export async function GET(request: Request) {
   return Response.json({ data })
 }
 
-/**
- * POST → requires logged-in user
- */
+
 export async function POST(request: Request) {
   const auth = await requireUser(request)
 

@@ -1,12 +1,10 @@
-import { supabasePublic, supabaseAdmin } from '../../../lib/supabase'
-import { requireAdmin } from '../../../lib/auth'
+﻿import { supabasePublic, supabaseAdmin } from '../../../lib/supabase'
 
 export async function GET() {
   const { data, error } = await supabasePublic
     .from('languages')
     .select('*')
     .eq('is_active', true)
-    .order('name', { ascending: true })
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
@@ -16,24 +14,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const admin = await requireAdmin(request)
-
-  if (admin.error) {
-    return Response.json({ error: admin.error }, { status: 403 })
-  }
-
   try {
     const body = await request.json()
-
-    const {
-      iso_code,
-      name,
-      local_name,
-      family,
-      region,
-      endangerment_level,
-      metadata,
-    } = body
+    const { iso_code, name, local_name, family, region, endangerment_level, metadata } = body
 
     if (!iso_code || !name) {
       return Response.json(
@@ -51,20 +34,25 @@ export async function POST(request: Request) {
         family,
         region,
         endangerment_level,
-        metadata: metadata ?? {},
+        metadata,
         is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single()
 
     if (error) {
+      if (error.code === '23505') {
+        return Response.json(
+          { error: 'A language with that iso_code already exists' },
+          { status: 409 }
+        )
+      }
       return Response.json({ error: error.message }, { status: 500 })
     }
 
-    return Response.json({
-      message: 'Language created successfully',
-      data,
-    })
+    return Response.json({ data }, { status: 201 })
   } catch {
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }

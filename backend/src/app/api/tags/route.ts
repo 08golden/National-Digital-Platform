@@ -1,26 +1,24 @@
-import { supabasePublic, supabaseAdmin } from '../../../lib/supabase'
-import { requireAdmin } from '../../../lib/auth'
+﻿import { supabasePublic, supabaseAdmin } from '../../../lib/supabase'
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const category = searchParams.get('category')
+  const search = searchParams.get('search')
 
-  const { data, error } = await supabasePublic
-    .from('recording_tags')
-    .select(`
-      tag_id,
-      tagged_at,
-      tags (
-        id,
-        name,
-        slug,
-        category,
-        description
-      )
-    `)
-    .eq('recording_id', id)
+  let query = supabasePublic
+    .from('tags')
+    .select('*')
+    .order('name', { ascending: true })
+
+  if (category) {
+    query = query.eq('category', category)
+  }
+
+  if (search) {
+    query = query.ilike('name', `%${search}%`)
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
@@ -29,49 +27,42 @@ export async function GET(
   return Response.json({ data })
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
-
-  const auth = await requireUser(request)
-
-  if (auth.error || !auth.user || !auth.token) {
-    return Response.json({ error: auth.error }, { status: 401 })
-  }
-
-  const supabase = createUserClient(auth.token)
-
+export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { tag_id } = body
+    const { name, slug, category, description } = body
 
-    if (!tag_id) {
+    if (!name || !slug) {
       return Response.json(
-        { error: 'tag_id is required' },
+        { error: 'name and slug are required' },
         { status: 400 }
       )
     }
 
-    const { data, error } = await supabase
-      .from('recording_tags')
+    const { data, error } = await supabaseAdmin
+      .from('tags')
       .insert({
-        recording_id: id,
-        tag_id,
-        tagged_by: auth.user.id,
+        name,
+        slug,
+        category,
+        description,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single()
 
     if (error) {
+      if (error.code === '23505') {
+        return Response.json(
+          { error: 'A tag with that slug already exists' },
+          { status: 409 }
+        )
+      }
       return Response.json({ error: error.message }, { status: 500 })
     }
 
-    return Response.json({
-      message: 'Tag applied to recording',
-      data,
-    })
+    return Response.json({ data }, { status: 201 })
   } catch {
     return Response.json({ error: 'Invalid request body' }, { status: 400 })
   }
