@@ -49,3 +49,29 @@ export async function requireAdmin(request: Request): Promise<AuthResult> {
 
   return result
 }
+
+export async function requireContributor(request: Request): Promise<AuthResult> {
+  const result = await requireUser(request)
+
+  if (result.error || !result.user) {
+    return result
+  }
+
+  // Only approved contributors (or admins) may upload. Role is the source of
+  // truth: an application is "approved" once role has been promoted.
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from('users')
+    .select('role, is_active')
+    .eq('id', result.user.id)
+    .single()
+
+  if (
+    profileError ||
+    !profile?.is_active ||
+    (profile.role !== 'contributor' && profile.role !== 'admin')
+  ) {
+    return { user: null, token: null, error: 'Approved contributor access required' }
+  }
+
+  return result
+}
