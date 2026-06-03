@@ -1,11 +1,10 @@
 // App.tsx
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Library, Upload as UploadIcon, Info, LayoutGrid, Sparkles } from 'lucide-react';
+import { Upload as UploadIcon, Info, LayoutGrid } from 'lucide-react';
 import { LanguageSelector } from './components/LanguageSelector';
 import { GreetingAnimation } from './components/GreetingAnimation';
 import { SearchBar } from './components/SearchBar';
-import { CategoryTabs } from './components/CategoryTabs';
 import { LibraryView } from './components/LibraryView';
 import { UploadModal } from './components/UploadModal';
 import { AuthGate } from './components/AuthGate';
@@ -31,14 +30,9 @@ export default function App() {
     setIsLoaded(true);
   }, []);
 
-  const handleSearch = (query: string) => {
+  const handleSearch = (query: string, category: Category | null = null) => {
     setSearchQuery(query);
-    setShowLibrary(true);
-  };
-
-  const handleCategorySelect = (category: Category | null) => {
     setActiveCategory(category);
-    setSearchQuery('');
     setShowLibrary(true);
   };
 
@@ -94,55 +88,67 @@ export default function App() {
       </AnimatePresence>
 
       <div className="relative z-30 min-h-screen flex flex-col">
-        <header className="p-6 md:p-8 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+        <header className="p-4 sm:p-6 md:p-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex w-full items-center justify-between gap-4 sm:w-auto sm:justify-start sm:gap-6">
             <motion.div 
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               className="flex items-center gap-3"
             >
-              <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-black shadow-xl">
-                <Sparkles size={24} />
+              <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center overflow-hidden shadow-xl">
+                <img
+                  src="/images/repo-logo.png"
+                  alt="Namibian Digital Language Repository logo"
+                  className="h-full w-full object-cover"
+                />
               </div>
-              <h1 className="text-xl font-display font-bold tracking-tight hidden sm:block">Namibia Repo</h1>
+              <h1 className="text-xl font-display font-bold tracking-tight hidden sm:block">Namibian Digital Language Repository</h1>
             </motion.div>
-            
-            <div className="h-8 w-px bg-white/10 mx-2 hidden md:block" />
-            
-            <LanguageSelector 
-              selectedId={selectedLanguageId} 
-              onSelect={setSelectedLanguageId} 
-            />
-          </div>
-          
-          <div className="hidden lg:block">
-            <CategoryTabs 
-              activeCategory={activeCategory} 
-              onSelect={handleCategorySelect} 
-            />
+
+            <div className="sm:hidden">
+              <UserMenu 
+                user={appUser}
+                onLogout={handleLogout}
+                onOpenUpload={() => setShowUpload(true)}
+                onOpenAdmin={() => setShowAdminPanel(true)}
+                onOpenSettings={() => setShowSettings(true)}
+                hasPendingUsers={false}
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start sm:gap-6">
+            <div className="min-w-0">
+              <LanguageSelector 
+                selectedId={selectedLanguageId} 
+                onSelect={setSelectedLanguageId} 
+              />
+            </div>
+            
+            <div className="h-8 w-px bg-white/10 mx-2 hidden md:block" />
+
             <button
               onClick={() => setShowLibrary(true)}
-              className="group flex items-center gap-2 px-5 py-2.5 glass rounded-full hover:bg-white/20 transition-all text-sm font-bold border border-white/5 active:scale-95"
+              className="group flex shrink-0 items-center gap-2 px-4 py-2.5 sm:px-5 glass rounded-full hover:bg-white/20 transition-all text-sm font-bold border border-white/5 active:scale-95"
             >
               <LayoutGrid size={18} className="text-amber-500 group-hover:rotate-90 transition-transform duration-500" />
               <span>Library</span>
             </button>
 
-            <UserMenu 
-              user={appUser}
-              onLogout={handleLogout}
-              onOpenUpload={() => setShowUpload(true)}
-              onOpenAdmin={() => setShowAdminPanel(true)}
-              onOpenSettings={() => setShowSettings(true)}
-              hasPendingUsers={false}
-            />
+            <div className="hidden sm:block">
+              <UserMenu 
+                user={appUser}
+                onLogout={handleLogout}
+                onOpenUpload={() => setShowUpload(true)}
+                onOpenAdmin={() => setShowAdminPanel(true)}
+                onOpenSettings={() => setShowSettings(true)}
+                hasPendingUsers={false}
+              />
+            </div>
           </div>
         </header>
 
-        <main className="flex-1 flex flex-col items-center justify-center px-6 -mt-20">
+        <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 sm:px-6 sm:-mt-20">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={isLoaded ? { opacity: 1, y: 0 } : {}}
@@ -153,34 +159,18 @@ export default function App() {
             
             <div className="w-full flex flex-col items-center gap-8">
               <SearchBar onSearch={handleSearch} />
-              
-              <div className="flex flex-wrap justify-center gap-4">
-                {['Culture', 'Linguistics', 'History', 'Music'].map((tag, idx) => (
-                  <motion.button 
-                    key={tag}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1 + (idx * 0.1) }}
-                    onClick={() => handleSearch(tag)}
-                    className="px-6 py-2 glass rounded-full text-xs font-bold text-white/40 hover:text-amber-500 hover:bg-amber-500/10 hover:border-amber-500/30 transition-all border border-transparent flex items-center gap-2 group"
-                  >
-                    <span className="text-amber-500 opacity-50 group-hover:opacity-100">#</span>
-                    {tag}
-                  </motion.button>
-                ))}
-              </div>
             </div>
           </motion.div>
         </main>
 
-        <footer className="p-8 flex flex-col md:flex-row md:items-end justify-between gap-8">
+        <footer className="p-4 sm:p-8 flex flex-col md:flex-row md:items-end justify-between gap-6 md:gap-8">
           <div className="flex flex-col gap-4">
             {(appUser.role === 'admin' || appUser.role === 'contributor') && (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowUpload(true)}
-                className="group flex items-center gap-4 p-2.5 glass rounded-full hover:bg-amber-500 hover:text-black transition-all pr-8 shadow-2xl"
+                className="group flex w-full items-center justify-center gap-4 p-2.5 glass rounded-full hover:bg-amber-500 hover:text-black transition-all sm:w-auto sm:justify-start sm:pr-8 shadow-2xl"
               >
                 <div className="p-3.5 bg-white/10 rounded-full group-hover:bg-black/10">
                   <UploadIcon size={24} />
@@ -190,8 +180,8 @@ export default function App() {
             )}
           </div>
 
-          <div className="max-w-md text-right">
-            <div className="flex items-center justify-end gap-2 text-white/30 mb-2">
+          <div className="max-w-md text-left md:text-right">
+            <div className="flex items-center justify-start gap-2 text-white/30 mb-2 md:justify-end">
               <Info size={16} />
               <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Context: {selectedLanguage.name}</span>
             </div>
@@ -229,13 +219,6 @@ export default function App() {
           <UserSettings onClose={() => setShowSettings(false)} user={appUser} />
         )}
       </AnimatePresence>
-
-      <div className="md:hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-40">
-        <CategoryTabs 
-          activeCategory={activeCategory} 
-          onSelect={handleCategorySelect} 
-        />
-      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Upload, ShieldCheck, Loader2, FileCheck } from 'lucide-react';
+import { X, Upload, Loader2, FileCheck, ClipboardList, User, Building2, Languages } from 'lucide-react';
 import { Category } from '../types';
 import { CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
@@ -15,9 +15,28 @@ interface UploadModalProps {
 export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   // "useState" is how we keep track of things that change in our app.
   // We keep track of the current step and what they selected.
-  const [step, setStep] = useState<'upload' | 'scanning' | 'result'>('upload');
+  const [step, setStep] = useState<'application' | 'upload' | 'scanning' | 'result'>('application');
+  const [application, setApplication] = useState({
+    name: '',
+    affiliation: '',
+    languageCommunity: '',
+    contributionPurpose: '',
+  });
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
+  const isApplicationComplete = [
+    application.name,
+    application.affiliation,
+    application.languageCommunity,
+    application.contributionPurpose,
+  ].every(value => value.trim().length > 1);
+
+  const updateApplicationField = (field: keyof typeof application, value: string) => {
+    setApplication((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
 
   // This function runs when the user clicks "Start Scanning".
   const handleUpload = () => {
@@ -30,7 +49,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4">
       {/* This is the dark background behind the pop-up. Clicking it closes the window. */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -45,7 +64,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="relative w-full max-w-md glass-dark rounded-3xl overflow-hidden shadow-2xl"
+        className="relative my-4 w-full max-w-xl glass-dark rounded-3xl overflow-hidden shadow-2xl sm:my-0"
       >
         <button
           onClick={onClose}
@@ -54,9 +73,99 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
           <X size={20} />
         </button>
 
-        <div className="p-8">
+        <div className="max-h-[calc(100vh-2rem)] overflow-y-auto p-5 custom-scrollbar sm:max-h-[90vh] sm:p-8">
           {/* "AnimatePresence" helps us animate things when they appear or disappear. */}
           <AnimatePresence mode="wait">
+            {step === 'application' && (
+              <motion.div
+                key="application"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <div className="mb-6 flex items-start gap-3 sm:gap-4">
+                  <div className="rounded-2xl bg-amber-500/15 p-2.5 text-amber-400 sm:p-3">
+                    <ClipboardList size={24} />
+                  </div>
+                  <div>
+                    <h3 className="pr-8 text-xl font-bold sm:text-2xl">Contributor Application</h3>
+                    <p className="mt-1 text-sm text-white/50">
+                      Complete this dummy application before moving to the upload tab.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <label className="block">
+                    <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/35">
+                      <User size={14} />
+                      Name
+                    </span>
+                    <input
+                      type="text"
+                      value={application.name}
+                      onChange={(e) => updateApplicationField('name', e.target.value)}
+                      placeholder="e.g. Dr. Helena Amutenya"
+                      className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/35">
+                      <Building2 size={14} />
+                      Affiliation
+                    </span>
+                    <input
+                      type="text"
+                      value={application.affiliation}
+                      onChange={(e) => updateApplicationField('affiliation', e.target.value)}
+                      placeholder="e.g. University of Namibia"
+                      className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/35">
+                      <Languages size={14} />
+                      Language community
+                    </span>
+                    <input
+                      type="text"
+                      value={application.languageCommunity}
+                      onChange={(e) => updateApplicationField('languageCommunity', e.target.value)}
+                      placeholder="e.g. Oshiwambo"
+                      className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/35">
+                      <ClipboardList size={14} />
+                      Contribution purpose
+                    </span>
+                    <textarea
+                      value={application.contributionPurpose}
+                      onChange={(e) => updateApplicationField('contributionPurpose', e.target.value)}
+                      placeholder="Briefly describe the content and why it belongs in the repository."
+                      className="min-h-24 w-full resize-none rounded-xl border border-white/10 bg-white/5 p-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs leading-5 text-white/45 sm:mt-8">
+                  This is a temporary demo form. It does not save data, submit records, or upload files yet.
+                </div>
+
+                <button
+                  onClick={() => setStep('upload')}
+                  disabled={!isApplicationComplete}
+                  className="mt-6 h-12 w-full rounded-xl bg-white font-bold text-black transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Continue to Upload
+                </button>
+              </motion.div>
+            )}
+
             {step === 'upload' && (
               <motion.div
                 key="upload"
@@ -64,8 +173,28 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <h3 className="text-2xl font-bold mb-6">Upload Content</h3>
-                <p className="text-white/60 text-sm mb-6">Select a category for your contribution.</p>
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="pr-8 text-xl font-bold sm:text-2xl">Upload Content</h3>
+                    <p className="mt-1 text-sm text-white/60">Select a category for your contribution.</p>
+                  </div>
+                  <button
+                    onClick={() => setStep('application')}
+                    className="w-full rounded-xl border border-white/10 px-3 py-2 text-xs font-bold uppercase tracking-widest text-white/45 transition-colors hover:bg-white/10 hover:text-white sm:w-auto"
+                  >
+                    Edit application
+                  </button>
+                </div>
+
+                <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Application Summary</div>
+                  <div className="mt-2 grid gap-2 text-sm text-white/65 sm:grid-cols-2">
+                    <span className="truncate">{application.name}</span>
+                    <span className="truncate">{application.affiliation}</span>
+                    <span className="truncate">{application.languageCommunity}</span>
+                    <span className="truncate text-white/35">Demo only</span>
+                  </div>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-3 mb-8">
                   {CATEGORIES.map((cat) => (

@@ -12,9 +12,24 @@ import { cn } from '../lib/utils';
 interface ContentDetailsProps {
   item: ContentItem;
   onClose: () => void;
+  onNext?: () => void;
+  onPrevious?: () => void;
+  hasNext?: boolean;
+  hasPrevious?: boolean;
+  nextItem?: ContentItem | null;
+  previousItem?: ContentItem | null;
 }
 
-export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose }) => {
+export const ContentDetails: React.FC<ContentDetailsProps> = ({
+  item,
+  onClose,
+  onNext,
+  onPrevious,
+  hasNext = false,
+  hasPrevious = false,
+  nextItem = null,
+  previousItem = null,
+}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -32,6 +47,20 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
       }
     }
   }, [isPlaying]);
+
+  useEffect(() => {
+    setCurrentTime(0);
+    setDuration(0);
+
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+      audioRef.current.load();
+
+      if (isPlaying) {
+        audioRef.current.play().catch(() => setIsPlaying(false));
+      }
+    }
+  }, [item.id]);
 
   const formatTime = (time: number) => {
     const mins = Math.floor(time / 60);
@@ -57,6 +86,16 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
     if (audioRef.current) {
       audioRef.current.currentTime = time;
     }
+  };
+
+  const handleNextTrack = () => {
+    if (!hasNext || !onNext) return;
+    onNext();
+  };
+
+  const handlePreviousTrack = () => {
+    if (!hasPrevious || !onPrevious) return;
+    onPrevious();
   };
 
   const Icon = {
@@ -129,7 +168,13 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
                     src={item.url || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"}
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
-                    onEnded={() => setIsPlaying(false)}
+                    onEnded={() => {
+                      if (hasNext && onNext) {
+                        onNext();
+                      } else {
+                        setIsPlaying(false);
+                      }
+                    }}
                   />
                   
                   <div className="space-y-2">
@@ -148,7 +193,15 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
                   </div>
 
                   <div className="flex items-center justify-center gap-8">
-                    <button className="text-white/40 hover:text-white transition-colors">
+                    <button
+                      onClick={handlePreviousTrack}
+                      disabled={!hasPrevious}
+                      title={previousItem ? `Previous: ${previousItem.title}` : 'No previous track'}
+                      className={cn(
+                        "transition-colors",
+                        hasPrevious ? "text-white/40 hover:text-white" : "cursor-not-allowed text-white/15"
+                      )}
+                    >
                       <SkipBack size={24} />
                     </button>
                     <button 
@@ -157,10 +210,39 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
                     >
                       {isPlaying ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
                     </button>
-                    <button className="text-white/40 hover:text-white transition-colors">
+                    <button
+                      onClick={handleNextTrack}
+                      disabled={!hasNext}
+                      title={nextItem ? `Next: ${nextItem.title}` : 'No next track'}
+                      className={cn(
+                        "transition-colors",
+                        hasNext ? "text-white/40 hover:text-white" : "cursor-not-allowed text-white/15"
+                      )}
+                    >
                       <SkipForward size={24} />
                     </button>
                   </div>
+
+                  {(previousItem || nextItem) && (
+                    <div className="grid gap-3 text-xs text-white/35 sm:grid-cols-2">
+                      <button
+                        onClick={handlePreviousTrack}
+                        disabled={!hasPrevious}
+                        className="min-w-0 rounded-xl border border-white/5 bg-white/[0.03] p-3 text-left transition-colors enabled:hover:bg-white/[0.07] disabled:opacity-40"
+                      >
+                        <span className="block font-bold uppercase tracking-widest">Previous</span>
+                        <span className="mt-1 block truncate text-white/65">{previousItem?.title || 'Start of queue'}</span>
+                      </button>
+                      <button
+                        onClick={handleNextTrack}
+                        disabled={!hasNext}
+                        className="min-w-0 rounded-xl border border-white/5 bg-white/[0.03] p-3 text-left transition-colors enabled:hover:bg-white/[0.07] disabled:opacity-40"
+                      >
+                        <span className="block font-bold uppercase tracking-widest">Next</span>
+                        <span className="mt-1 block truncate text-white/65">{nextItem?.title || 'End of queue'}</span>
+                      </button>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between pt-4 border-t border-white/5">
                     <div className="flex items-center gap-3">

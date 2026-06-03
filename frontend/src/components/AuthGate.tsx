@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { KeyRound, Mail, UserPlus, Fingerprint, Loader2, ArrowRight } from 'lucide-react';
+import { KeyRound, Mail, UserPlus, Loader2, ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export const AuthGate: React.FC = () => {
@@ -36,43 +36,44 @@ export const AuthGate: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-950 overflow-hidden">
-      <motion.div
-        animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }}
-        transition={{ duration: 10, repeat: Infinity }}
-        className="absolute top-0 -left-20 w-[500px] h-[500px] bg-amber-500/20 blur-[150px] rounded-full pointer-events-none"
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-zinc-950 px-4 py-6 sm:items-center sm:p-0">
+      <img
+        src="/images/dead-vlei-sossusvlei.jpeg"
+        alt="Dead Vlei and Sossusvlei dunes"
+        className="absolute inset-0 h-full w-full object-cover"
       />
-      <motion.div
-        animate={{ scale: [1.2, 1, 1.2], opacity: [0.1, 0.15, 0.1] }}
-        transition={{ duration: 8, repeat: Infinity, delay: 1 }}
-        className="absolute bottom-0 -right-20 w-[500px] h-[500px] bg-red-600/20 blur-[150px] rounded-full pointer-events-none"
-      />
+      <div className="absolute inset-0 bg-black/45" />
+      <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/25 to-zinc-950/20" />
 
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-xl p-6 md:p-12 relative z-10"
+        className="w-full max-w-xl md:p-12 relative z-10"
       >
-        <div className="text-center mb-12">
+        <div className="text-center mb-7 sm:mb-12">
           <motion.div
             whileHover={{ rotate: 360 }}
             transition={{ duration: 1 }}
-            className="inline-flex p-5 rounded-[2rem] bg-white/5 border border-white/10 mb-8 shadow-2xl"
+            className="inline-flex h-20 w-20 items-center justify-center overflow-hidden rounded-[1.5rem] bg-amber-500 border border-white/10 mb-5 shadow-2xl sm:h-24 sm:w-24 sm:rounded-[2rem] sm:mb-8"
           >
-            <Fingerprint size={56} className="text-amber-500" />
+            <img
+              src="/images/repo-logo.png"
+              alt="Namibian Digital Language Repository logo"
+              className="h-full w-full object-cover"
+            />
           </motion.div>
-          <h1 className="text-5xl font-display font-bold tracking-tight mb-4 bg-gradient-to-br from-white via-white to-white/40 bg-clip-text text-transparent">
+          <h1 className="text-4xl sm:text-5xl font-display font-bold tracking-tight mb-3 sm:mb-4 bg-gradient-to-br from-white via-white to-white/40 bg-clip-text text-transparent">
             {mode === 'login' ? 'Welcome Back' : 'Join the Circle'}
           </h1>
-          <p className="text-white/40 text-lg">
+          <p className="text-white/45 text-base sm:text-lg">
             {mode === 'login'
               ? 'Enter the digital gateway of Namibian heritage'
               : 'Apply for access to preserve our collective voice'}
           </p>
         </div>
 
-        <div className="glass-dark rounded-[3rem] p-4 md:p-10 border border-white/10 shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-          <div className="flex gap-2 mb-10 p-1.5 bg-black/40 rounded-[2rem] border border-white/5">
+        <div className="glass-dark rounded-[2rem] p-4 border border-white/10 shadow-2xl relative overflow-hidden backdrop-blur-3xl sm:rounded-[3rem] md:p-10">
+          <div className="flex gap-2 mb-6 p-1.5 bg-black/40 rounded-[2rem] border border-white/5 sm:mb-10">
             <button
               onClick={() => setMode('login')}
               className={cn(
@@ -93,7 +94,7 @@ export const AuthGate: React.FC = () => {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <AnimatePresence mode="wait">
               {mode === 'register' && (
                 <motion.div
@@ -110,7 +111,7 @@ export const AuthGate: React.FC = () => {
                       placeholder="Your Full Name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="w-full h-16 pl-14 pr-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
+                      className="w-full h-14 sm:h-16 pl-14 pr-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
                       required={mode === 'register'}
                     />
                   </div>
@@ -125,7 +126,7 @@ export const AuthGate: React.FC = () => {
                 placeholder="Email Address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-16 pl-14 pr-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
+                className="w-full h-14 sm:h-16 pl-14 pr-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
                 required
               />
             </div>
@@ -145,7 +146,7 @@ export const AuthGate: React.FC = () => {
                     placeholder="Security Key"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full h-16 pl-14 pr-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
+                    className="w-full h-14 sm:h-16 pl-14 pr-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
                     required
                   />
                   <div className="mt-3 flex items-center justify-center gap-2">
@@ -167,7 +168,7 @@ export const AuthGate: React.FC = () => {
                     placeholder="State your intent... (e.g. Scholar, Researcher, Student)"
                     value={intent}
                     onChange={(e) => setIntent(e.target.value)}
-                    className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base min-h-[140px] resize-none"
+                    className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base min-h-28 sm:min-h-[140px] resize-none"
                     required={mode === 'register'}
                   />
                 </motion.div>
@@ -187,7 +188,7 @@ export const AuthGate: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-16 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-2xl transition-all shadow-2xl flex items-center justify-center gap-3 group disabled:opacity-50 active:scale-[0.98]"
+              className="w-full h-14 sm:h-16 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-2xl transition-all shadow-2xl flex items-center justify-center gap-3 group disabled:opacity-50 active:scale-[0.98]"
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={24} />
@@ -201,7 +202,7 @@ export const AuthGate: React.FC = () => {
           </form>
         </div>
 
-        <div className="mt-12 text-center text-white/20 text-xs px-12 leading-relaxed italic">
+        <div className="mt-7 sm:mt-12 text-center text-white/25 text-xs px-2 sm:px-12 leading-relaxed italic">
           "Language is the soul of our nation. By entering, you pledge to handle these digital artifacts with the reverence they deserve."
         </div>
       </motion.div>
