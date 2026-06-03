@@ -1,5 +1,5 @@
 import { supabasePublic, createUserClient } from '../../../lib/supabase'
-import { requireUser } from '../../../lib/auth'
+import { requireContributor } from '../../../lib/auth'
 
 
 export async function GET(request: Request) {
@@ -35,10 +35,11 @@ export async function GET(request: Request) {
 
 
 export async function POST(request: Request) {
-  const auth = await requireUser(request)
+  const auth = await requireContributor(request)
 
   if (auth.error || !auth.user || !auth.token) {
-    return Response.json({ error: auth.error }, { status: 401 })
+    const status = auth.error === 'Approved contributor access required' ? 403 : 401
+    return Response.json({ error: auth.error }, { status })
   }
 
   const supabase = createUserClient(auth.token)
