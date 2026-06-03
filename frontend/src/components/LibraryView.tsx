@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Folder, FileText, Music, Video, Book, 
@@ -8,6 +8,7 @@ import {
 import { Category, ContentItem } from '../types';
 import { MOCK_CONTENT, CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
+import { searchContent } from '../lib/search';
 import { ContentDetails } from './ContentDetails';
 
 interface LibraryViewProps {
@@ -29,14 +30,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ languageId, initialSea
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
 
-  const filteredContent = MOCK_CONTENT.filter(item => {
-    const langMatch = languageId === 'all' || item.languageId === languageId;
-    const catMatch = !selectedCategory || item.category === selectedCategory;
-    const searchMatch = !searchQuery || 
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return langMatch && catMatch && searchMatch;
-  });
+  const filteredContent = useMemo(
+    () => searchContent(MOCK_CONTENT, {
+      query: searchQuery,
+      languageId,
+      category: selectedCategory,
+    }),
+    [languageId, searchQuery, selectedCategory]
+  );
 
   return (
     <motion.div
