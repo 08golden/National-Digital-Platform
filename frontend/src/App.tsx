@@ -36,6 +36,12 @@ export default function App() {
     setShowLibrary(true);
   };
 
+  const handleCategorySelect = (category: Category | null) => {
+    setActiveCategory(category);
+    setSearchQuery('');
+    setShowLibrary(true);
+  };
+
   const handleLogout = async () => {
     await signOut();
     setShowAdminPanel(false);
@@ -112,7 +118,7 @@ export default function App() {
           <div className="hidden lg:block">
             <CategoryTabs 
               activeCategory={activeCategory} 
-              onSelect={setActiveCategory} 
+              onSelect={handleCategorySelect} 
             />
           </div>
 
@@ -201,6 +207,8 @@ export default function App() {
           <LibraryView 
             languageId={selectedLanguageId} 
             initialSearchQuery={searchQuery}
+            initialCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
             onClose={() => {
               setShowLibrary(false);
               setSearchQuery('');
@@ -225,7 +233,7 @@ export default function App() {
       <div className="md:hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-40">
         <CategoryTabs 
           activeCategory={activeCategory} 
-          onSelect={setActiveCategory} 
+          onSelect={handleCategorySelect} 
         />
       </div>
     </div>
