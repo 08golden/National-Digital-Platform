@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileText, Music, Video, Book, X, Search as SearchIcon, Globe } from 'lucide-react';
-import { Category, ContentItem } from '../types';
+import { Category } from '../types';
 import { MOCK_CONTENT, CATEGORIES, LANGUAGES } from '../constants';
 import { cn } from '../lib/utils';
+import { searchContent } from '../lib/search';
 
 interface SearchResultsProps {
   query: string;
@@ -22,13 +23,10 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ query, languageId,
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
 
   const filteredResults = useMemo(() => {
-    return MOCK_CONTENT.filter(item => {
-      const langMatch = languageId === 'all' || item.languageId === languageId;
-      const catMatch = !activeCategory || item.category === activeCategory;
-      const searchMatch = !query || 
-        item.title.toLowerCase().includes(query.toLowerCase()) ||
-        item.description.toLowerCase().includes(query.toLowerCase());
-      return langMatch && catMatch && searchMatch;
+    return searchContent(MOCK_CONTENT, {
+      query,
+      languageId,
+      category: activeCategory,
     });
   }, [query, languageId, activeCategory]);
 

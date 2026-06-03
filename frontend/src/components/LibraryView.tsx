@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Folder, FileText, Music, Video, Book, 
@@ -8,11 +8,14 @@ import {
 import { Category, ContentItem } from '../types';
 import { MOCK_CONTENT, CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
+import { searchContent } from '../lib/search';
 import { ContentDetails } from './ContentDetails';
 
 interface LibraryViewProps {
   languageId: string;
   initialSearchQuery?: string;
+  initialCategory?: Category | null;
+  onCategoryChange?: (category: Category | null) => void;
   onClose: () => void;
 }
 
@@ -24,19 +27,30 @@ const ICON_MAP = {
 };
 
 // This component shows the "Library" where all the articles, books, etc., are stored.
-export const LibraryView: React.FC<LibraryViewProps> = ({ languageId, initialSearchQuery = '', onClose }) => {
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+export const LibraryView: React.FC<LibraryViewProps> = ({
+  languageId,
+  initialSearchQuery = '',
+  initialCategory = null,
+  onCategoryChange,
+  onClose,
+}) => {
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(initialCategory);
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
 
-  const filteredContent = MOCK_CONTENT.filter(item => {
-    const langMatch = languageId === 'all' || item.languageId === languageId;
-    const catMatch = !selectedCategory || item.category === selectedCategory;
-    const searchMatch = !searchQuery || 
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return langMatch && catMatch && searchMatch;
-  });
+  const updateSelectedCategory = (category: Category | null) => {
+    setSelectedCategory(category);
+    onCategoryChange?.(category);
+  };
+
+  const filteredContent = useMemo(
+    () => searchContent(MOCK_CONTENT, {
+      query: searchQuery,
+      languageId,
+      category: selectedCategory,
+    }),
+    [languageId, searchQuery, selectedCategory]
+  );
 
   return (
     <motion.div
@@ -80,7 +94,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ languageId, initialSea
               <button
                 id="btn-reset-filters"
                 onClick={() => {
-                  setSelectedCategory(null);
+                  updateSelectedCategory(null);
                   setSearchQuery('');
                 }}
                 className="text-sm font-bold text-amber-500 hover:text-amber-400 transition-colors uppercase tracking-widest px-4 py-2 bg-amber-500/10 rounded-xl"
@@ -104,7 +118,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ languageId, initialSea
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.1 }}
                     whileHover={{ y: -8, scale: 1.02 }}
-                    onClick={() => setSelectedCategory(cat)}
+                    onClick={() => updateSelectedCategory(cat)}
                     className="group relative aspect-[4/5] glass rounded-[2.5rem] p-10 flex flex-col shadow-2xl overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 p-8">
@@ -134,7 +148,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ languageId, initialSea
                 <div className="flex items-center gap-4">
                   {selectedCategory && (
                     <button 
-                      onClick={() => setSelectedCategory(null)}
+                      onClick={() => updateSelectedCategory(null)}
                       className="text-xs font-bold text-white/40 hover:text-white transition-colors flex items-center gap-2 uppercase tracking-tighter"
                     >
                       Library <ChevronRight size={14} className="inline-block" /> {selectedCategory}
@@ -156,7 +170,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ languageId, initialSea
                     <p className="text-white/40 max-w-sm mx-auto">Try adjusting your search terms or filters to find what you're looking for.</p>
                   </div>
                   <button 
-                    onClick={() => {setSearchQuery(''); setSelectedCategory(null);}}
+                    onClick={() => {setSearchQuery(''); updateSelectedCategory(null);}}
                     className="px-8 py-3 bg-white text-black font-bold rounded-xl hover:scale-105 transition-all"
                   >
                     Clear All Filters
