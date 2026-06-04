@@ -1,17 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
-  X, Play, Pause, SkipForward, SkipBack,
-  Volume2, Download, Clock, Calendar,
-  User, FileText, Music, Video, Book,
-  ChevronRight, Expand, EyeOff, SendHorizonal,
-  Link, CheckCircle2, Loader2
+import { 
+  X, Play, Pause, SkipForward, SkipBack, 
+  Volume2, Download, Share2, Clock, Calendar, 
+  User, FileText, Music, Video, Book, 
+  ChevronRight, ChevronLeft, Expand
 } from 'lucide-react';
 import { ContentItem } from '../types';
 import { cn } from '../lib/utils';
-import { useAuth } from '../contexts/AuthContext';
-import { useShareRequests } from '../contexts/ShareRequestsContext';
-import { ShareRequestModal } from './ShareRequestModal';
 
 interface ContentDetailsProps {
   item: ContentItem;
@@ -34,28 +30,13 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
   nextItem = null,
   previousItem = null,
 }) => {
-const shareUrl = (token: string) => `${window.location.origin}/share/${token}`;
-
-export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose }) => {
-  const { appUser } = useAuth();
-  const { getRequestForContent } = useShareRequests();
-
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [copied, setCopied] = useState(false);
-
+  
   const audioRef = useRef<HTMLAudioElement>(null);
-
-  // Consent flags — undefined treated as allowed (permissive default for legacy content)
-  const downloadAllowed = item.dataUseConsent?.allowDownload !== false;
-  const sharingAllowed = item.dataUseConsent?.allowSharing !== false;
-  const isPlatformOnly = !downloadAllowed && !sharingAllowed;
-
-  const existingRequest = getRequestForContent(item.id);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -88,23 +69,23 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
   };
 
   const handleTimeUpdate = () => {
-    if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
   };
 
   const handleLoadedMetadata = () => {
-    if (audioRef.current) setDuration(audioRef.current.duration);
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
   };
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = parseFloat(e.target.value);
     setCurrentTime(time);
-    if (audioRef.current) audioRef.current.currentTime = time;
-  };
-
-  const handleCopyLink = async (token: string) => {
-    await navigator.clipboard.writeText(shareUrl(token));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (audioRef.current) {
+      audioRef.current.currentTime = time;
+    }
   };
 
   const handleNextTrack = () => {
@@ -131,8 +112,11 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
     >
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={onClose} />
-
+      <div 
+        className="absolute inset-0 bg-black/80 backdrop-blur-md" 
+        onClick={onClose} 
+      />
+      
       <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -146,18 +130,22 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
           <X size={20} />
         </button>
 
-        {/* 70% Main Content */}
-        <div className="md:w-[70%] h-full flex flex-col overflow-hidden bg-white/5 border-r border-white/10">
+        {/* 70% Main Content Section */}
+        <div id="main-content-section" className="md:w-[70%] h-full flex flex-col overflow-hidden bg-white/5 border-r border-white/10">
           <div className="flex-1 overflow-y-auto p-8 md:p-12 custom-scrollbar">
             {item.category === 'Audio' ? (
               <div className="h-full flex flex-col items-center justify-center space-y-12">
-                <motion.div
+                <motion.div 
                   animate={isPlaying ? { scale: [1, 1.05, 1] } : {}}
                   transition={{ duration: 2, repeat: Infinity }}
                   className="w-64 h-64 glass rounded-3xl flex items-center justify-center shadow-2xl relative group"
                 >
                   {item.thumbnail ? (
-                    <img src={item.thumbnail} alt={item.title} className="w-full h-full object-cover rounded-3xl opacity-60" />
+                    <img 
+                      src={item.thumbnail} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover rounded-3xl opacity-60"
+                    />
                   ) : (
                     <Music size={80} className="text-amber-500/40" />
                   )}
@@ -170,13 +158,14 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
 
                 <div className="text-center">
                   <h2 className="text-4xl font-display font-bold mb-4 tracking-tight">{item.title}</h2>
-                  <p className="text-white/40 text-lg">{item.author || 'Cultural Heritage Audio'}</p>
+                  <p className="text-white/40 text-lg">{item.author || "Cultural Heritage Audio"}</p>
                 </div>
 
-                <div className="w-full max-w-xl space-y-6 glass p-8 rounded-[2rem]">
-                  <audio
+                {/* Full Audio Player UI */}
+                <div id="audio-player-container" className="w-full max-w-xl space-y-6 glass p-8 rounded-[2rem]">
+                  <audio 
                     ref={audioRef}
-                    src={item.url || 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'}
+                    src={item.url || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"}
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
                     onEnded={() => {
@@ -187,10 +176,13 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
                       }
                     }}
                   />
-
+                  
                   <div className="space-y-2">
                     <input
-                      type="range" min={0} max={duration || 0} value={currentTime}
+                      type="range"
+                      min={0}
+                      max={duration || 0}
+                      value={currentTime}
                       onChange={handleSliderChange}
                       className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-amber-500"
                     />
@@ -212,7 +204,7 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
                     >
                       <SkipBack size={24} />
                     </button>
-                    <button
+                    <button 
                       onClick={() => setIsPlaying(!isPlaying)}
                       className="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center hover:scale-110 transition-all font-bold shadow-lg"
                     >
@@ -256,8 +248,12 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
                     <div className="flex items-center gap-3">
                       <Volume2 size={18} className="text-white/40" />
                       <input
-                        type="range" min={0} max={1} step={0.1} value={volume}
-                        onChange={e => {
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.1}
+                        value={volume}
+                        onChange={(e) => {
                           const v = parseFloat(e.target.value);
                           setVolume(v);
                           if (audioRef.current) audioRef.current.volume = v;
@@ -265,7 +261,7 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
                         className="w-24 h-1 bg-white/10 rounded-full appearance-none cursor-pointer accent-white"
                       />
                     </div>
-                    <button
+                    <button 
                       onClick={() => setIsExpanded(!isExpanded)}
                       className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/40"
                     >
@@ -285,25 +281,25 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
                   <div className="flex flex-wrap gap-6 text-white/40 text-sm">
                     <div className="flex items-center gap-2">
                       <User size={16} />
-                      {item.author || 'Repository Contributor'}
+                      {item.author || "Repository Contributor"}
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar size={16} />
-                      {item.date || 'March 2024'}
+                      {item.date || "March 2024"}
                     </div>
                   </div>
                 </header>
-
+                
                 <div className="text-white/80 leading-relaxed text-lg font-serif">
-                  {item.transcript || 'This document content is being digitized and will be available as a full transcript shortly.'}
+                  {item.transcript || "This document content is being digitized and will be available as a full transcript shortly. This article explores the cultural significance of Namibian linguistic traditions and their preservation in the modern digital era. Language is not just a tool for communication; it is a repository of history, values, and community identity."}
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* 30% Details / Actions */}
-        <div className="md:w-[30%] h-full flex flex-col p-8 md:p-10 space-y-10 overflow-y-auto">
+        {/* 30% Details/Actions Section */}
+        <div id="side-details-section" className="md:w-[30%] h-full flex flex-col p-8 md:p-10 space-y-10 overflow-y-auto">
           <section className="space-y-6">
             <h3 className="text-sm font-bold uppercase tracking-widest text-white/30 px-1">Details</h3>
             <div className="space-y-4">
@@ -325,66 +321,28 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
                   <div className="text-sm font-semibold">Zambezi Region, Namibia</div>
                 </div>
               </div>
-
-              {/* Platform-only badge */}
-              {isPlatformOnly && (
-                <div className="glass p-4 rounded-2xl flex items-center gap-3 border border-white/10">
-                  <EyeOff size={16} className="text-white/40 shrink-0" />
-                  <div>
-                    <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Data Use</div>
-                    <div className="text-xs font-semibold text-white/60">Platform View Only</div>
-                  </div>
-                </div>
-              )}
             </div>
           </section>
 
           <section className="space-y-6">
             <h3 className="text-sm font-bold uppercase tracking-widest text-white/30 px-1">Actions</h3>
             <div className="flex flex-col gap-3">
-
-              {/* Download button — hidden when not permitted */}
-              {downloadAllowed ? (
-                <button
-                  id="btn-download-resource"
-                  className="w-full h-14 bg-white text-black rounded-2xl font-bold flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                >
-                  <Download size={20} />
-                  Download Resource
-                </button>
-              ) : (
-                <div className="w-full h-14 glass rounded-2xl flex items-center justify-center gap-3 opacity-40 cursor-not-allowed border border-white/10">
-                  <Download size={20} className="text-white/40" />
-                  <span className="text-sm text-white/40 font-medium">Download not permitted</span>
-                </div>
-              )}
-
-              {/* Share section — driven by consent + request state */}
-              {sharingAllowed ? (
-                <ShareAction
-                  item={item}
-                  existingRequest={existingRequest}
-                  onOpenModal={() => setShowShareModal(true)}
-                  onCopy={handleCopyLink}
-                  copied={copied}
-                />
-              ) : (
-                <div className="w-full h-14 glass rounded-2xl flex items-center justify-center gap-3 opacity-40 cursor-not-allowed border border-white/10">
-                  <EyeOff size={20} className="text-white/40" />
-                  <span className="text-sm text-white/40 font-medium">Sharing not permitted</span>
-                </div>
-              )}
+              <button id="btn-download-resource" className="w-full h-14 bg-white text-black rounded-2xl font-bold flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                <Download size={20} />
+                Download Resource
+              </button>
+              <button className="w-full h-14 glass rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-white/10 transition-all">
+                <Share2 size={20} />
+                Share Link
+              </button>
             </div>
           </section>
 
           <section className="flex-1 space-y-6">
             <h3 className="text-sm font-bold uppercase tracking-widest text-white/30 px-1">Recommended</h3>
             <div className="space-y-3">
-              {[1, 2].map(i => (
-                <div
-                  key={i}
-                  className="glass p-4 rounded-2xl flex items-center gap-4 hover:bg-white/10 transition-all cursor-pointer group"
-                >
+              {[1, 2].map((i) => (
+                <div key={i} className="glass p-4 rounded-2xl flex items-center gap-4 hover:bg-white/10 transition-all cursor-pointer group">
                   <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center text-white/40 group-hover:text-white transition-colors">
                     <Icon size={20} />
                   </div>
@@ -398,6 +356,7 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
             </div>
           </section>
 
+          {/* User Meta Card */}
           <div className="mt-auto pt-6 border-t border-white/5 flex items-center gap-4">
             <div className="w-12 h-12 rounded-full overflow-hidden bg-amber-500/20 flex items-center justify-center">
               <User size={24} className="text-amber-500" />
@@ -409,95 +368,6 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({ item, onClose })
           </div>
         </div>
       </motion.div>
-
-      {/* Share request modal rendered above the content detail overlay */}
-      <AnimatePresence>
-        {showShareModal && (
-          <ShareRequestModal item={item} onClose={() => setShowShareModal(false)} />
-        )}
-      </AnimatePresence>
     </motion.div>
   );
-};
-
-// ── Sub-component: share action area ──────────────────────────────────────────
-
-interface ShareActionProps {
-  item: ContentItem;
-  existingRequest: ReturnType<ReturnType<typeof useShareRequests>['getRequestForContent']>;
-  onOpenModal: () => void;
-  onCopy: (token: string) => void;
-  copied: boolean;
-}
-
-const ShareAction: React.FC<ShareActionProps> = ({ item, existingRequest, onOpenModal, onCopy, copied }) => {
-  if (!existingRequest) {
-    return (
-      <button
-        onClick={onOpenModal}
-        className="w-full h-14 glass rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-white/10 transition-all border border-white/10"
-      >
-        <SendHorizonal size={20} />
-        Request Share Access
-      </button>
-    );
-  }
-
-  if (existingRequest.status === 'pending') {
-    return (
-      <div className="w-full glass rounded-2xl p-4 border border-amber-500/20 flex items-center gap-3">
-        <Loader2 size={18} className="text-amber-500 animate-spin shrink-0" />
-        <div>
-          <div className="text-xs font-bold text-amber-400">Share Request Pending</div>
-          <div className="text-[10px] text-white/30 mt-0.5">Awaiting admin review</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (existingRequest.status === 'rejected') {
-    return (
-      <div className="flex flex-col gap-2">
-        <div className="w-full glass rounded-2xl p-4 border border-red-500/20 flex items-center gap-3">
-          <X size={18} className="text-red-400 shrink-0" />
-          <div>
-            <div className="text-xs font-bold text-red-400">Share Request Rejected</div>
-            <div className="text-[10px] text-white/30 mt-0.5">Contact an admin for details</div>
-          </div>
-        </div>
-        <button
-          onClick={onOpenModal}
-          className="w-full h-10 glass rounded-xl text-xs font-bold text-white/50 hover:text-white hover:bg-white/5 transition-all border border-white/10"
-        >
-          Submit a new request
-        </button>
-      </div>
-    );
-  }
-
-  // Approved — show the share link with copy button
-  if (existingRequest.status === 'approved' && existingRequest.shareToken) {
-    return (
-      <div className="w-full glass rounded-2xl p-4 border border-green-500/20 space-y-3">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 size={16} className="text-green-400 shrink-0" />
-          <span className="text-xs font-bold text-green-400">Share Request Approved</span>
-        </div>
-        <div className="flex items-center gap-2 p-2 bg-white/5 rounded-xl border border-white/10">
-          <Link size={12} className="text-amber-500 shrink-0" />
-          <span className="text-[10px] text-white/40 font-mono truncate flex-1">
-            {shareUrl(existingRequest.shareToken)}
-          </span>
-          <button
-            onClick={() => onCopy(existingRequest.shareToken!)}
-            className="text-[10px] font-bold text-amber-500 hover:text-amber-400 shrink-0 transition-colors"
-          >
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
 };
