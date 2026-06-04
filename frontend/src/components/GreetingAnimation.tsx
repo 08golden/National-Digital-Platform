@@ -13,26 +13,29 @@ export const GreetingAnimation: React.FC<GreetingAnimationProps> = ({ languageId
   // "index" keeps track of which language greeting we are currently showing from our list.
   const [index, setIndex] = useState(0);
   const selectedLanguage = LANGUAGES.find(l => l.id === languageId);
+  const greetingLanguages = LANGUAGES.filter(language => language.id !== 'all');
 
   // "useEffect" is used to run code at specific times.
   // Here, we use it to start a timer that changes the greeting every 2.5 seconds.
   useEffect(() => {
+    setIndex(0);
+
     // If the user has picked a specific language, we don't need the timer.
     if (languageId !== 'all') return;
 
     const interval = setInterval(() => {
       // We update the index to the next one in the list.
       // The "%" (modulo) operator makes it go back to 0 when it reaches the end.
-      setIndex((prev) => (prev + 1) % LANGUAGES.length);
+      setIndex((prev) => (prev + 1) % greetingLanguages.length);
     }, 2500);
 
     // This "cleanup" function stops the timer if the component is removed from the screen.
     return () => clearInterval(interval);
-  }, [languageId]);
+  }, [languageId, greetingLanguages.length]);
 
   // We decide which greeting to show based on whether the user picked a language or not.
   const displayGreeting = languageId === 'all' 
-    ? LANGUAGES[index].greeting 
+    ? greetingLanguages[index]?.greeting || 'Hello'
     : selectedLanguage?.greeting || 'Hello';
 
   return (

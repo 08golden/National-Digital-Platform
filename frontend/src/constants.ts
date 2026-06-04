@@ -1,4 +1,4 @@
-import { Language, ContentItem, Category, User, DataUseConsent } from './types';
+﻿import { Language, ContentItem, Category, User } from './types';
 
 // This is a list of all the languages we support in our app.
 // Each one has a name, a greeting, and a background image.
@@ -8,48 +8,48 @@ export const LANGUAGES: Language[] = [
     name: 'All Languages',
     greeting: 'Hello',
     themeColor: 'amber',
-    bgImage: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&q=80&w=1920',
+    bgImage: '/images/dead-vlei-sossusvlei.jpeg',
     cultureDescription: 'Namibia: Land of the Brave'
   },
   {
     id: 'oshiwambo',
     name: 'Oshiwambo',
-    greeting: 'Ongaipi',
+    greeting: 'Ongeipi',
     themeColor: 'red',
-    bgImage: 'https://images.unsplash.com/photo-1489392191049-fc10c97e64b6?auto=format&fit=crop&q=80&w=1920',
+    bgImage: '/images/oshiwambo-background.png',
     cultureDescription: 'The Aawambo people are the largest ethnic group in Namibia.'
   },
   {
     id: 'otjiherero',
-    name: 'Otjiherero',
-    greeting: 'Tjave',
+    name: 'Herero',
+    greeting: 'Motjavi',
     themeColor: 'blue',
-    bgImage: 'https://images.unsplash.com/photo-1523805081446-ed9a96a2b5d9?auto=format&fit=crop&q=80&w=1920',
+    bgImage: '/images/namibia_panafricaproject_africa_lou_jones_copyright-2496.jpg',
     cultureDescription: 'The Ovaherero are known for their distinctive Victorian-style dresses and cattle-herding traditions.'
   },
   {
     id: 'khoekhoegowab',
     name: 'Khoekhoegowab',
-    greeting: '!Gâi tses',
+    greeting: '!Gâi tsēs',
     themeColor: 'emerald',
-    bgImage: 'https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?auto=format&fit=crop&q=80&w=1920',
+    bgImage: '/images/121085066_10158728056211322_6035100653345688396_n.jpg',
     cultureDescription: 'The Nama and Damara people speak this click language.'
-  },
-  {
-    id: 'silozi',
-    name: 'Silozi',
-    greeting: 'Lumela',
-    themeColor: 'orange',
-    bgImage: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&q=80&w=1920',
-    cultureDescription: 'Spoken primarily in the Zambezi region of Namibia.'
   },
   {
     id: 'rukwangali',
     name: 'Rukwangali',
-    greeting: 'Moro',
+    greeting: 'Morokeni',
     themeColor: 'yellow',
-    bgImage: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?auto=format&fit=crop&q=80&w=1920',
+    bgImage: '/images/Mbunza-Main-Intro.jpg',
     cultureDescription: 'The language of the Kavango people along the northern border.'
+  },
+  {
+    id: 'afrikaans',
+    name: 'Afrikaans',
+    greeting: 'Gooie More',
+    themeColor: 'orange',
+    bgImage: '/images/657152NZbt0MeQ.jpg',
+    cultureDescription: 'Afrikaans is widely spoken across Namibia and carries a rich local literary and everyday tradition.'
   }
 ];
 
