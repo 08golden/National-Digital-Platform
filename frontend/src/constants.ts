@@ -91,7 +91,8 @@ export const MOCK_CONTENT: ContentItem[] = [
     duration: '12:45',
     date: 'January 2024',
     url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    transcript: 'Welcome to this recording of the Epupa Falls legends. These falls are not just a geographical feature, but a living ancestor. The mist rising from the falls is said to be the breath of the spirits...'
+    transcript: 'Welcome to this recording of the Epupa Falls legends. These falls are not just a geographical feature, but a living ancestor. The mist rising from the falls is said to be the breath of the spirits...',
+    dataUseConsent: { allowSharing: true, allowDownload: true },
   },
   {
     id: '2',
@@ -113,7 +114,8 @@ export const MOCK_CONTENT: ContentItem[] = [
     description: 'A deep linguistic analysis of the four primary click sounds and their releases in the Nama language.',
     author: 'Dr. L. Nama',
     date: 'March 2024',
-    transcript: 'Khoekhoegowab is famous for its intricate system of click consonants. There are four primary click types used in this language: dental, alveolar, lateral, and palatal. Each one carries a unique semantic weight...'
+    transcript: 'Khoekhoegowab is famous for its intricate system of click consonants. There are four primary click types used in this language: dental, alveolar, lateral, and palatal. Each one carries a unique semantic weight...',
+    dataUseConsent: { allowSharing: true, allowDownload: false },
   },
   {
     id: '4',
@@ -124,7 +126,8 @@ export const MOCK_CONTENT: ContentItem[] = [
     thumbnail: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&q=80&w=300',
     author: 'Prof. S. Mukalani',
     date: 'February 2024',
-    transcript: 'The Zambezi region represents one of the most biodiverse areas in Namibia. This book catalogs over 400 species of birds and mammals found along the river banks...'
+    transcript: 'The Zambezi region represents one of the most biodiverse areas in Namibia. This book catalogs over 400 species of birds and mammals found along the river banks...',
+    dataUseConsent: { allowSharing: false, allowDownload: false },
   },
   {
     id: '5',

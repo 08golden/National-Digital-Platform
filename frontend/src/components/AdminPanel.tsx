@@ -2,17 +2,20 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { AppUser } from '../types';
-import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload } from 'lucide-react';
+import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload, Share2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabaseClient';
 import { ModerationTab } from './ModerationTab';
 import { UploadsTab } from './UploadsTab';
+import { ShareRequestsTab } from './ShareRequestsTab';
+import { useShareRequests } from '../contexts/ShareRequestsContext';
 
 export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { appUser } = useAuth();
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'moderation' | 'uploads'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'moderation' | 'uploads' | 'share-requests'>('users');
+  const { requests: shareRequests, pendingCount, approveRequest, rejectRequest } = useShareRequests();
 
   useEffect(() => {
     fetchUsers();
@@ -70,13 +73,13 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </button>
         </header>
 
-        <div className="flex gap-2 px-8 pt-6 border-b border-white/5">
-          {(['users', 'moderation', 'uploads'] as const).map(tab => (
+        <div className="flex gap-2 px-8 pt-6 border-b border-white/5 overflow-x-auto">
+          {(['users', 'moderation', 'uploads', 'share-requests'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "px-6 py-3 rounded-t-2xl font-bold text-sm uppercase tracking-wider transition-all",
+                "px-6 py-3 rounded-t-2xl font-bold text-sm uppercase tracking-wider transition-all whitespace-nowrap relative",
                 activeTab === tab
                   ? "bg-amber-500 text-black shadow-xl"
                   : "text-white/50 hover:text-white hover:bg-white/5"
@@ -85,6 +88,17 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               {tab === 'users' && <><UserCheck size={16} className="inline mr-2" /> Users</>}
               {tab === 'moderation' && <><MessageSquare size={16} className="inline mr-2" /> Moderation</>}
               {tab === 'uploads' && <><Upload size={16} className="inline mr-2" /> Uploads</>}
+              {tab === 'share-requests' && (
+                <>
+                  <Share2 size={16} className="inline mr-2" />
+                  Share Requests
+                  {pendingCount > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-black text-[10px] font-black">
+                      {pendingCount}
+                    </span>
+                  )}
+                </>
+              )}
             </button>
           ))}
         </div>
@@ -169,6 +183,14 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               onDeleteFiles={() => {}}
               onChangeStatus={() => {}}
               onSelectFile={() => {}}
+            />
+          )}
+
+          {activeTab === 'share-requests' && (
+            <ShareRequestsTab
+              requests={shareRequests}
+              onApprove={approveRequest}
+              onReject={rejectRequest}
             />
           )}
         </div>

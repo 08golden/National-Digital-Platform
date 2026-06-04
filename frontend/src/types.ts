@@ -14,6 +14,13 @@ export interface User {
   createdAt: string;
 }
 
+// Contributor-specified data-use preferences, set at upload time.
+// undefined on either field means the permission is granted (permissive default for legacy content).
+export interface DataUseConsent {
+  allowSharing: boolean;   // others may submit a share request for this asset
+  allowDownload: boolean;  // others may download this asset directly
+}
+
 export interface ContentItem {
   id: string;
   title: string;
@@ -26,6 +33,24 @@ export interface ContentItem {
   author?: string;
   duration?: string;
   date?: string;
+  dataUseConsent?: DataUseConsent;
+}
+
+// ---- Share request flow ----
+export type ShareRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ShareRequest {
+  id: string;
+  contentId: string;
+  contentTitle: string;
+  requestedBy: string;        // AppUser.id
+  requestedByName: string;
+  requestedAt: string;        // ISO timestamp
+  reason: string;
+  status: ShareRequestStatus;
+  shareToken?: string;        // UUID set by admin on approval; build URL as /share/{shareToken}
+  reviewedBy?: string;        // admin AppUser.id
+  reviewedAt?: string;        // ISO timestamp
 }
 
 // ---- our AppUser (real DB) ----
