@@ -1,4 +1,4 @@
-import { supabasePublic, createUserClient } from '../../../lib/supabase'
+import { supabasePublic, createUserClient, supabaseAdmin } from '../../../lib/supabase'
 import { requireContributor } from '../../../lib/auth'
 
 
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { title, description, language_id } = body
+    const { title, description, language_id, storage_path } = body
 
     if (!title || !language_id) {
       return Response.json(
@@ -55,15 +55,36 @@ export async function POST(request: Request) {
       )
     }
 
+    // If a storage path was provided, verify the object exists in the recordings bucket
+    if (storage_path) {
+      try {
+        const { data: fileData, error: downloadError } = await supabaseAdmin.storage
+          .from('recordings')
+          .download(storage_path)
+
+        if (downloadError) {
+          return Response.json({ error: 'Uploaded file not found in storage' }, { status: 400 })
+        }
+        // We don't need the file bytes here; presence is enough.
+        void fileData
+      } catch (e) {
+        return Response.json({ error: 'Error checking storage for file' }, { status: 500 })
+      }
+    }
+
+    const insertPayload: any = {
+      title,
+      description,
+      language_id,
+      uploaded_by: auth.user.id,
+      status: 'pending',
+    }
+
+    if (storage_path) insertPayload.storage_path = storage_path
+
     const { data, error } = await supabase
       .from('recordings')
-      .insert({
-        title,
-        description,
-        language_id,
-        uploaded_by: auth.user.id, 
-        status: 'pending',
-      })
+      .insert(insertPayload)
       .select()
       .single()
 
