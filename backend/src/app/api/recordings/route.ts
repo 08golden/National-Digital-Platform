@@ -79,11 +79,22 @@ export async function POST(request: Request) {
       }
     }
 
+    // Determine uploaded_by: prefer authenticated user, else pick any existing user when bypassing
+    let uploadedBy = auth?.user?.id ?? null
+    if (bypass && !uploadedBy) {
+      try {
+        const { data: someUser } = await supabaseAdmin.from('users').select('id').limit(1).single()
+        uploadedBy = someUser?.id ?? null
+      } catch (e) {
+        uploadedBy = null
+      }
+    }
+
     const insertPayload: any = {
       title,
       description,
       language_id,
-      uploaded_by: auth?.user?.id ?? null,
+      uploaded_by: uploadedBy,
       status: 'pending',
     }
 
