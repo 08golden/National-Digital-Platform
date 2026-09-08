@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { title, description, language_id, storage_path } = body
 
-    if (!title || !language_id) {
+    if (!title || (!language_id && !bypass)) {
       return Response.json(
         { error: 'title and language_id are required' },
         { status: 400 }

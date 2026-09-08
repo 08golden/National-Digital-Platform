@@ -1,6 +1,6 @@
 const fs = require('fs')
 const path = require('path')
-const fetch = require('node-fetch')
+// use global fetch (Node 18+)
 const { createClient } = require('@supabase/supabase-js')
 
 async function main() {
@@ -12,9 +12,9 @@ async function main() {
   }))
 
   const supabaseUrl = vars.NEXT_PUBLIC_SUPABASE_URL
-  const anon = vars.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const service = vars.SUPABASE_SERVICE_ROLE_KEY
 
-  const supabase = createClient(supabaseUrl, anon)
+  const supabase = createClient(supabaseUrl, service)
 
   // create a small test file
   const tmp = path.join(__dirname, 'tmp_test.txt')
