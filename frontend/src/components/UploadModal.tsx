@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Upload, Loader2, FileCheck, ClipboardList, User, Building2, Languages } from 'lucide-react';
 import { Category } from '../types';
+import { supabase } from '../lib/supabaseClient';
 import { CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
 
@@ -23,6 +24,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
     contributionPurpose: '',
   });
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   const isApplicationComplete = [
     application.name,
@@ -38,14 +41,54 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
     }));
   };
 
-  // This function runs when the user clicks "Start Scanning".
-  const handleUpload = () => {
-    if (!selectedCategory) return;
+  // Handle file selection
+  const handleFileChange = (file?: File) => {
+    if (!file) return;
+    setSelectedFile(file);
+  };
+
+  // Upload file to Supabase Storage and create a recording via backend
+  const handleUpload = async () => {
+    if (!selectedCategory || !selectedFile) return;
     setStep('scanning');
-    // We wait for 3 seconds (3000 milliseconds) to pretend we are scanning the file.
-    setTimeout(() => {
+    try {
+      const fileExt = selectedFile.name.split('.').pop() || 'bin';
+      const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+      const storagePath = `${selectedCategory.toLowerCase()}/${fileName}`;
+
+      // Upload to 'recordings' bucket
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('recordings')
+        .upload(storagePath, selectedFile, { cacheControl: '3600', upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      // Create DB record via backend API
+      const payload = {
+        title: selectedFile.name,
+        description: application.contributionPurpose || '',
+        language_id: application.languageCommunity || null,
+        storage_path: uploadData.path,
+      };
+
+      const res = await fetch('/api/recordings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to create recording');
+      }
+
+      setUploadProgress(100);
       setStep('result');
-    }, 3000);
+    } catch (e) {
+      console.error('Upload error', e);
+      setStep('upload');
+      alert('Upload failed: ' + (e instanceof Error ? e.message : String(e)));
+    }
   };
 
   return (
@@ -216,6 +259,15 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                 <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 mb-8">
                   <Upload size={32} className="text-white/20" />
                   <p className="text-xs text-white/40 text-center">Drag and drop your file here or click to browse</p>
+                  <input
+                    type="file"
+                    accept="audio/*,video/*,text/*"
+                    onChange={(e) => handleFileChange(e.target.files ? e.target.files[0] : undefined)}
+                    className="mt-2 w-full text-sm text-white/40"
+                  />
+                  {selectedFile && (
+                    <div className="mt-2 text-xs text-white/60">Selected: {selectedFile.name}</div>
+                  )}
                 </div>
 
                 <button
