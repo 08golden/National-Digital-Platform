@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       title,
       description,
       language_id,
-      uploaded_by: auth.user.id,
+      uploaded_by: auth?.user?.id ?? null,
       status: 'pending',
     }
 
