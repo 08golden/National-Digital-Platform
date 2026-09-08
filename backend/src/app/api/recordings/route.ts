@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const supabase = bypass ? createUserClient('') : createUserClient(auth.token)
+  const supabase = bypass ? supabaseAdmin : createUserClient(auth.token)
 
   try {
     const body = await request.json()
