@@ -90,10 +90,21 @@ export async function POST(request: Request) {
       }
     }
 
+    // If bypass and no language_id provided, pick any existing language id to satisfy DB constraints
+    let resolvedLanguageId = language_id
+    if (bypass && !resolvedLanguageId) {
+      try {
+        const { data: someLang } = await supabaseAdmin.from('languages').select('id').limit(1).single()
+        resolvedLanguageId = someLang?.id ?? null
+      } catch (e) {
+        resolvedLanguageId = null
+      }
+    }
+
     const insertPayload: any = {
       title,
       description,
-      language_id,
+      language_id: resolvedLanguageId,
       uploaded_by: uploadedBy,
       status: 'pending',
     }
