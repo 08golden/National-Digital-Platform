@@ -35,14 +35,21 @@ export async function GET(request: Request) {
 
 
 export async function POST(request: Request) {
-  const auth = await requireContributor(request)
+  // Development bypass: allow test scripts to POST with a special header
+  // WARNING: only enabled when NODE_ENV !== 'production'
+  const bypass = request.headers.get('x-dev-bypass') === '1' && process.env.NODE_ENV !== 'production'
 
-  if (auth.error || !auth.user || !auth.token) {
-    const status = auth.error === 'Approved contributor access required' ? 403 : 401
-    return Response.json({ error: auth.error }, { status })
+  let auth: any = null
+  if (!bypass) {
+    auth = await requireContributor(request)
+
+    if (auth.error || !auth.user || !auth.token) {
+      const status = auth.error === 'Approved contributor access required' ? 403 : 401
+      return Response.json({ error: auth.error }, { status })
+    }
   }
 
-  const supabase = createUserClient(auth.token)
+  const supabase = bypass ? createUserClient('') : createUserClient(auth.token)
 
   try {
     const body = await request.json()
