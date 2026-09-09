@@ -37,7 +37,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   // Development bypass: allow test scripts to POST with a special header
   // WARNING: only enabled when NODE_ENV !== 'production'
-  const bypass = request.headers.get('x-dev-bypass') === '1' && process.env.NODE_ENV !== 'production'
+  // Dev bypass requires explicit opt-in via ALLOW_E2E in addition to header and non-production
+  const bypass = request.headers.get('x-dev-bypass') === '1' && process.env.NODE_ENV !== 'production' && process.env.ALLOW_E2E === '1'
 
   let auth: any = null
   if (!bypass) {
