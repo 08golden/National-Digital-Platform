@@ -85,16 +85,83 @@ CREATE TABLE IF NOT EXISTS public.permissions (
 );
 
 -- Full-text search for transcripts
+-- Safely add a tsvector column, populate using whichever text column exists,
+-- create a trigger function that handles possible column-name variations,
+-- and create a GIN index. This avoids touching rows unnecessarily.
+BEGIN;
+ALTER TABLE IF EXISTS public.transcripts ADD COLUMN IF NOT EXISTS search_vector tsvector;
+
+-- Populate search_vector using the first available text column
 DO $$
+DECLARE
+  col text;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transcripts' AND column_name='search_vector') THEN
-    ALTER TABLE public.transcripts ADD COLUMN search_vector tsvector;
-    UPDATE public.transcripts SET search_vector = to_tsvector('english', coalesce(text_content,''));
-    CREATE INDEX IF NOT EXISTS transcripts_search_idx ON public.transcripts USING GIN(search_vector);
-    CREATE TRIGGER transcripts_search_update BEFORE INSERT OR UPDATE ON public.transcripts
-    FOR EACH ROW EXECUTE PROCEDURE tsvector_update_trigger('search_vector', 'pg_catalog.english', 'text_content');
+  SELECT column_name INTO col
+  FROM information_schema.columns
+  WHERE table_schema = 'public'
+    AND table_name = 'transcripts'
+    AND column_name IN ('text_content','content','body','transcript_text')
+  LIMIT 1;
+
+  IF col IS NOT NULL THEN
+    EXECUTE format(
+      'UPDATE public.transcripts SET search_vector = to_tsvector(''english'', coalesce(%I::text, '''')) WHERE search_vector IS NULL',
+      col
+    );
+  ELSE
+    RAISE NOTICE 'No transcript text column found (looked for text_content, content, body, transcript_text) - skipping population.';
   END IF;
-END$$;
+END
+$$ LANGUAGE plpgsql;
+
+-- Create/update trigger function that reads the available text column dynamically
+CREATE OR REPLACE FUNCTION public.update_transcripts_search_vector() RETURNS trigger AS $$
+DECLARE
+  val text := NULL;
+BEGIN
+  -- Try known field names one by one; undefined_column exceptions are caught
+  BEGIN
+    val := NEW.text_content;
+  EXCEPTION WHEN undefined_column THEN
+    val := NULL;
+  END;
+
+  IF val IS NULL THEN
+    BEGIN
+      val := NEW.content;
+    EXCEPTION WHEN undefined_column THEN
+      val := NULL;
+    END;
+  END IF;
+
+  IF val IS NULL THEN
+    BEGIN
+      val := NEW.body;
+    EXCEPTION WHEN undefined_column THEN
+      val := NULL;
+    END;
+  END IF;
+
+  IF val IS NULL THEN
+    BEGIN
+      val := NEW.transcript_text;
+    EXCEPTION WHEN undefined_column THEN
+      val := NULL;
+    END;
+  END IF;
+
+  NEW.search_vector := to_tsvector('english', coalesce(val::text, ''));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS transcripts_search_update ON public.transcripts;
+CREATE TRIGGER transcripts_search_update
+  BEFORE INSERT OR UPDATE ON public.transcripts
+  FOR EACH ROW EXECUTE PROCEDURE public.update_transcripts_search_vector();
+
+CREATE INDEX IF NOT EXISTS transcripts_search_idx ON public.transcripts USING GIN(search_vector);
+COMMIT;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS recordings_language_idx ON public.recordings(language_id);
