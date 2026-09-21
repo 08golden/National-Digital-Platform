@@ -40,7 +40,8 @@ export async function POST(request: Request) {
   // Dev bypass requires explicit opt-in via ALLOW_E2E in addition to header and non-production
   const bypass = request.headers.get('x-dev-bypass') === '1' && process.env.NODE_ENV !== 'production' && process.env.ALLOW_E2E === '1'
 
-  let auth: any = null
+  type AuthState = Awaited<ReturnType<typeof requireContributor>>
+  let auth: AuthState | null = null
   if (!bypass) {
     auth = await requireContributor(request)
 
@@ -53,7 +54,12 @@ export async function POST(request: Request) {
   const supabase = bypass ? supabaseAdmin : createUserClient(auth.token)
 
   try {
-    const body = await request.json()
+    const body = (await request.json()) as Partial<{
+      title: string
+      description: string | null
+      language_id: string | null
+      storage_path: string | null
+    }>
     const { title, description, language_id, storage_path } = body
 
     if (!title || (!language_id && !bypass)) {
@@ -102,11 +108,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const insertPayload: any = {
-      title,
-      description,
-      language_id: resolvedLanguageId,
-      uploaded_by: uploadedBy,
+    const insertPayload: Record<string, string | null> = {
+      title: title ?? null,
+      description: description ?? null,
+      language_id: resolvedLanguageId ?? null,
+      uploaded_by: uploadedBy ?? null,
       status: 'pending',
     }
 

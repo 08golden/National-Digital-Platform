@@ -39,9 +39,10 @@ async function main() {
     storage_path: data.path,
   }
 
+  console.log('Sending body:', JSON.stringify(body))
   const res = await fetch('http://localhost:3000/api/recordings', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-dev-bypass': '1' },
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'x-dev-bypass': '1' },
     body: JSON.stringify(body),
   })
 
