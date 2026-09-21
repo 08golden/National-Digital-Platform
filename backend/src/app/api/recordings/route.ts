@@ -51,7 +51,10 @@ export async function POST(request: Request) {
     }
   }
 
-  const supabase = bypass ? supabaseAdmin : createUserClient(auth.token)
+  // At this point, when !bypass, auth is guaranteed non-null with a valid
+  // token (checked above) — TS can't infer that correlation across the two
+  // conditionals on its own, hence the assertion.
+  const supabase = bypass ? supabaseAdmin : createUserClient(auth!.token)
 
   try {
     const body = (await request.json()) as Partial<{

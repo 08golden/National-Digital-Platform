@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Upload, Loader2, FileCheck, ClipboardList, User, Building2, Languages } from 'lucide-react';
 import { Category } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { getLanguages } from '../lib/api/languages';
 import { CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
 
@@ -10,32 +11,48 @@ interface UploadModalProps {
   onClose: () => void;
 }
 
+interface LanguageOption {
+  id: string;
+  name: string;
+}
+
 // This component shows a pop-up window (a "Modal") where users can upload content.
-// It has several steps: Selecting a Category, Scanning the file, and showing the Result.
+// It has several steps: contribution details, selecting a file/category, and confirmation.
+// Note: this modal only opens for users who are already approved contributors or admins
+// (see UserMenu) — becoming a contributor happens separately via the Contributor
+// Application flow in User Settings.
 
 export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   // "useState" is how we keep track of things that change in our app.
   // We keep track of the current step and what they selected.
-  const [step, setStep] = useState<'application' | 'upload' | 'scanning' | 'result'>('application');
-  const [application, setApplication] = useState({
+  const [step, setStep] = useState<'details' | 'upload' | 'scanning' | 'result'>('details');
+  const [details, setDetails] = useState({
     name: '',
     affiliation: '',
-    languageCommunity: '',
+    languageId: '',
     contributionPurpose: '',
   });
+  const [languages, setLanguages] = useState<LanguageOption[]>([]);
+  const [languagesError, setLanguagesError] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  const isApplicationComplete = [
-    application.name,
-    application.affiliation,
-    application.languageCommunity,
-    application.contributionPurpose,
+  useEffect(() => {
+    getLanguages()
+      .then((data) => setLanguages(data))
+      .catch((e) => setLanguagesError(e instanceof Error ? e.message : 'Failed to load languages'));
+  }, []);
+
+  const isDetailsComplete = [
+    details.name,
+    details.affiliation,
+    details.languageId,
+    details.contributionPurpose,
   ].every(value => value.trim().length > 1);
 
-  const updateApplicationField = (field: keyof typeof application, value: string) => {
-    setApplication((current) => ({
+  const updateDetailField = (field: keyof typeof details, value: string) => {
+    setDetails((current) => ({
       ...current,
       [field]: value,
     }));
@@ -66,12 +83,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
       // Create DB record via backend API
       const payload = {
         title: selectedFile.name,
-        description: application.contributionPurpose || '',
-        language_id: application.languageCommunity || null,
+        description: details.contributionPurpose || '',
+        language_id: details.languageId,
         storage_path: uploadData.path,
       };
 
-      const res = await fetch('/api/recordings', {
+      const BASE_URL = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${BASE_URL}/api/recordings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -119,9 +137,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
         <div className="max-h-[calc(100vh-2rem)] overflow-y-auto p-5 custom-scrollbar sm:max-h-[90vh] sm:p-8">
           {/* "AnimatePresence" helps us animate things when they appear or disappear. */}
           <AnimatePresence mode="wait">
-            {step === 'application' && (
+            {step === 'details' && (
               <motion.div
-                key="application"
+                key="details"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
@@ -131,9 +149,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                     <ClipboardList size={24} />
                   </div>
                   <div>
-                    <h3 className="pr-8 text-xl font-bold sm:text-2xl">Contributor Application</h3>
+                    <h3 className="pr-8 text-xl font-bold sm:text-2xl">Contribution Details</h3>
                     <p className="mt-1 text-sm text-white/50">
-                      Complete this dummy application before moving to the upload tab.
+                      Tell us about this contribution before uploading the file.
                     </p>
                   </div>
                 </div>
@@ -146,8 +164,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                     </span>
                     <input
                       type="text"
-                      value={application.name}
-                      onChange={(e) => updateApplicationField('name', e.target.value)}
+                      value={details.name}
+                      onChange={(e) => updateDetailField('name', e.target.value)}
                       placeholder="e.g. Dr. Helena Amutenya"
                       className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
                     />
@@ -160,8 +178,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                     </span>
                     <input
                       type="text"
-                      value={application.affiliation}
-                      onChange={(e) => updateApplicationField('affiliation', e.target.value)}
+                      value={details.affiliation}
+                      onChange={(e) => updateDetailField('affiliation', e.target.value)}
                       placeholder="e.g. University of Namibia"
                       className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
                     />
@@ -170,15 +188,21 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                   <label className="block">
                     <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/35">
                       <Languages size={14} />
-                      Language community
+                      Language
                     </span>
-                    <input
-                      type="text"
-                      value={application.languageCommunity}
-                      onChange={(e) => updateApplicationField('languageCommunity', e.target.value)}
-                      placeholder="e.g. Oshiwambo"
-                      className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
-                    />
+                    <select
+                      value={details.languageId}
+                      onChange={(e) => updateDetailField('languageId', e.target.value)}
+                      className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm outline-none transition-all focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
+                    >
+                      <option value="" className="bg-zinc-900">Select a language...</option>
+                      {languages.map((lang) => (
+                        <option key={lang.id} value={lang.id} className="bg-zinc-900">{lang.name}</option>
+                      ))}
+                    </select>
+                    {languagesError && (
+                      <span className="mt-1 block text-xs text-red-400">{languagesError}</span>
+                    )}
                   </label>
 
                   <label className="block">
@@ -187,22 +211,18 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                       Contribution purpose
                     </span>
                     <textarea
-                      value={application.contributionPurpose}
-                      onChange={(e) => updateApplicationField('contributionPurpose', e.target.value)}
-                      placeholder="Briefly describe the content and why it belongs in the repository."
+                      value={details.contributionPurpose}
+                      onChange={(e) => updateDetailField('contributionPurpose', e.target.value)}
+                      placeholder="Briefly describe the content and why it belongs on the platform."
                       className="min-h-24 w-full resize-none rounded-xl border border-white/10 bg-white/5 p-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
                     />
                   </label>
                 </div>
 
-                <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-xs leading-5 text-white/45 sm:mt-8">
-                  This is a temporary demo form. It does not save data, submit records, or upload files yet.
-                </div>
-
                 <button
                   onClick={() => setStep('upload')}
-                  disabled={!isApplicationComplete}
-                  className="mt-6 h-12 w-full rounded-xl bg-white font-bold text-black transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!isDetailsComplete}
+                  className="mt-6 h-12 w-full rounded-xl bg-white font-bold text-black transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:mt-8"
                 >
                   Continue to Upload
                 </button>
@@ -222,20 +242,19 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                     <p className="mt-1 text-sm text-white/60">Select a category for your contribution.</p>
                   </div>
                   <button
-                    onClick={() => setStep('application')}
+                    onClick={() => setStep('details')}
                     className="w-full rounded-xl border border-white/10 px-3 py-2 text-xs font-bold uppercase tracking-widest text-white/45 transition-colors hover:bg-white/10 hover:text-white sm:w-auto"
                   >
-                    Edit application
+                    Edit details
                   </button>
                 </div>
 
                 <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Application Summary</div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Contribution Summary</div>
                   <div className="mt-2 grid gap-2 text-sm text-white/65 sm:grid-cols-2">
-                    <span className="truncate">{application.name}</span>
-                    <span className="truncate">{application.affiliation}</span>
-                    <span className="truncate">{application.languageCommunity}</span>
-                    <span className="truncate text-white/35">Demo only</span>
+                    <span className="truncate">{details.name}</span>
+                    <span className="truncate">{details.affiliation}</span>
+                    <span className="truncate">{languages.find(l => l.id === details.languageId)?.name || details.languageId}</span>
                   </div>
                 </div>
                 
@@ -288,14 +307,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                 className="py-12 flex flex-col items-center justify-center text-center"
               >
                 <Loader2 size={48} className="text-amber-500 animate-spin mb-6" />
-                <h3 className="text-2xl font-bold mb-2">Scanning...</h3>
-                <p className="text-white/40 text-sm">Identifying language and content type</p>
+                <h3 className="text-2xl font-bold mb-2">Uploading...</h3>
+                <p className="text-white/40 text-sm">Saving your file to storage and creating the record</p>
                 
                 <div className="mt-8 w-full bg-white/5 h-1 rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: '100%' }}
-                    transition={{ duration: 3 }}
+                    animate={{ width: uploadProgress === 100 ? '100%' : '70%' }}
+                    transition={{ duration: 1.2 }}
                     className="h-full bg-amber-500"
                   />
                 </div>
@@ -314,20 +333,24 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                     <FileCheck size={48} className="text-green-500" />
                   </div>
                 </div>
-                <h3 className="text-2xl font-bold mb-2">Scan Complete!</h3>
-                <p className="text-white/40 text-sm mb-8">The system has successfully categorized your content.</p>
+                <h3 className="text-2xl font-bold mb-2">Upload Complete!</h3>
+                <p className="text-white/40 text-sm mb-8">
+                  Your contribution has been saved and is now pending moderation.
+                </p>
                 
                 <div className="glass rounded-2xl p-6 mb-8 text-left">
-                  <div className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Detected Output</div>
-                  <div className="text-2xl font-display font-bold">Oshiherero Article</div>
-                  <div className="text-sm text-white/40 mt-2">Confidence: 98.4%</div>
+                  <div className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Submitted</div>
+                  <div className="text-xl font-display font-bold truncate">{selectedFile?.name}</div>
+                  <div className="text-sm text-white/40 mt-2">
+                    {selectedCategory} · {languages.find(l => l.id === details.languageId)?.name || 'Unknown language'}
+                  </div>
                 </div>
 
                 <button
                   onClick={onClose}
                   className="w-full h-12 bg-white text-black font-bold rounded-xl transition-all"
                 >
-                  Finish & Submit
+                  Done
                 </button>
               </motion.div>
             )}

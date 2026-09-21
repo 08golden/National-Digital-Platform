@@ -2,29 +2,91 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { AppUser } from '../types';
-import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload, Share2 } from 'lucide-react';
+import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload, Share2, ClipboardList, AlertTriangle, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabaseClient';
 import { ModerationTab } from './ModerationTab';
 import { UploadsTab } from './UploadsTab';
 import { ShareRequestsTab } from './ShareRequestsTab';
 import { useShareRequests } from '../contexts/ShareRequestsContext';
+import {
+  ContributorApplicant,
+  approveContributorApplication,
+  getContributorApplications,
+  rejectContributorApplication,
+} from '../lib/api/contributorApplications';
 
-export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+interface AdminPanelProps {
+  onClose: () => void;
+  onPendingApplicationsChange?: (count: number) => void;
+}
+
+export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplicationsChange }) => {
   const { appUser } = useAuth();
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'users' | 'moderation' | 'uploads' | 'share-requests'>('users');
+  const [usersError, setUsersError] = useState('');
+  const [activeTab, setActiveTab] = useState<'users' | 'applications' | 'moderation' | 'uploads' | 'share-requests'>('users');
   const { requests: shareRequests, pendingCount, approveRequest, rejectRequest } = useShareRequests();
+
+  const [applications, setApplications] = useState<ContributorApplicant[]>([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(true);
+  const [applicationsError, setApplicationsError] = useState('');
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
+    fetchApplications();
   }, []);
 
   const fetchUsers = async () => {
+    setLoading(true);
+    setUsersError('');
     const { data, error } = await supabase.from('users').select('*').order('created_at', { ascending: false });
-    if (!error && data) setAllUsers(data);
+    if (error) {
+      setUsersError(error.message || 'Failed to load users.');
+    } else if (data) {
+      setAllUsers(data);
+    }
     setLoading(false);
+  };
+
+  const fetchApplications = async () => {
+    setApplicationsLoading(true);
+    setApplicationsError('');
+    try {
+      const data = await getContributorApplications('pending');
+      setApplications(data);
+      onPendingApplicationsChange?.(data.length);
+    } catch (e) {
+      setApplicationsError(e instanceof Error ? e.message : 'Failed to load applications.');
+    } finally {
+      setApplicationsLoading(false);
+    }
+  };
+
+  const handleApprove = async (userId: string) => {
+    setReviewingId(userId);
+    try {
+      await approveContributorApplication(userId);
+      await Promise.all([fetchApplications(), fetchUsers()]);
+    } catch (e) {
+      setApplicationsError(e instanceof Error ? e.message : 'Failed to approve application.');
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
+  const handleReject = async (userId: string) => {
+    setReviewingId(userId);
+    try {
+      await rejectContributorApplication(userId);
+      await fetchApplications();
+    } catch (e) {
+      setApplicationsError(e instanceof Error ? e.message : 'Failed to reject application.');
+    } finally {
+      setReviewingId(null);
+    }
   };
 
   const updateRole = async (userId: string, newRole: 'admin' | 'contributor' | 'viewer') => {
@@ -74,7 +136,7 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </header>
 
         <div className="flex gap-2 px-8 pt-6 border-b border-white/5 overflow-x-auto">
-          {(['users', 'moderation', 'uploads', 'share-requests'] as const).map(tab => (
+          {(['users', 'applications', 'moderation', 'uploads', 'share-requests'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -86,6 +148,17 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               )}
             >
               {tab === 'users' && <><UserCheck size={16} className="inline mr-2" /> Users</>}
+              {tab === 'applications' && (
+                <>
+                  <ClipboardList size={16} className="inline mr-2" />
+                  Applications
+                  {applications.length > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-black text-[10px] font-black">
+                      {applications.length}
+                    </span>
+                  )}
+                </>
+              )}
               {tab === 'moderation' && <><MessageSquare size={16} className="inline mr-2" /> Moderation</>}
               {tab === 'uploads' && <><Upload size={16} className="inline mr-2" /> Uploads</>}
               {tab === 'share-requests' && (
@@ -107,6 +180,20 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           {activeTab === 'users' && (
             loading ? (
               <div className="text-center py-20 text-white/40">Loading users...</div>
+            ) : usersError ? (
+              <div className="flex flex-col items-center gap-4 py-20 text-center">
+                <AlertTriangle className="text-red-400" size={32} />
+                <p className="text-red-400 font-bold">Couldn't load users</p>
+                <p className="text-white/40 text-sm max-w-sm">{usersError}</p>
+                <button
+                  onClick={fetchUsers}
+                  className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
+                >
+                  <RefreshCw size={14} /> Retry
+                </button>
+              </div>
+            ) : allUsers.length === 0 ? (
+              <div className="text-center py-20 text-white/40">No users found yet.</div>
             ) : (
               <div className="space-y-10">
                 <section>
@@ -164,6 +251,63 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     </div>
                   ))}
                 </section>
+              </div>
+            )
+          )}
+
+          {activeTab === 'applications' && (
+            applicationsLoading ? (
+              <div className="text-center py-20 text-white/40">Loading applications...</div>
+            ) : applicationsError ? (
+              <div className="flex flex-col items-center gap-4 py-20 text-center">
+                <AlertTriangle className="text-red-400" size={32} />
+                <p className="text-red-400 font-bold">Couldn't load applications</p>
+                <p className="text-white/40 text-sm max-w-sm">{applicationsError}</p>
+                <button
+                  onClick={fetchApplications}
+                  className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-sm font-bold hover:bg-white/10 transition-all"
+                >
+                  <RefreshCw size={14} /> Retry
+                </button>
+              </div>
+            ) : applications.length === 0 ? (
+              <div className="text-center py-20 text-white/40">No pending contributor applications.</div>
+            ) : (
+              <div className="space-y-3">
+                {applications.map(app => (
+                  <div key={app.user_id} className="glass rounded-2xl p-5 space-y-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-bold">{app.display_name || app.username}</p>
+                        <p className="text-sm text-white/40">{app.email}</p>
+                        {app.application?.submitted_at && (
+                          <p className="text-xs text-white/25 mt-1">
+                            Applied {new Date(app.application.submitted_at).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => handleApprove(app.user_id)}
+                          disabled={reviewingId === app.user_id}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-all disabled:opacity-50"
+                        >
+                          <Check size={14} /> Approve
+                        </button>
+                        <button
+                          onClick={() => handleReject(app.user_id)}
+                          disabled={reviewingId === app.user_id}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-all disabled:opacity-50"
+                        >
+                          <X size={14} /> Reject
+                        </button>
+                      </div>
+                    </div>
+                    {app.application?.motivation && (
+                      <p className="text-sm text-white/60 bg-white/5 rounded-xl p-3">{app.application.motivation}</p>
+                    )}
+                  </div>
+                ))}
               </div>
             )
           )}

@@ -14,6 +14,7 @@ import { UserSettings } from './components/UserSettings';
 import { LANGUAGES } from './constants';
 import { useAuth } from './contexts/AuthContext';
 import { AppUser, Category } from './types';
+import { getContributorApplications } from './lib/api/contributorApplications';
 
 export default function App() {
   const { appUser, signOut, loading } = useAuth();
@@ -25,10 +26,18 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
+  const [pendingApplications, setPendingApplications] = useState(0);
 
   useEffect(() => {
     setIsLoaded(true);
   }, []);
+
+  useEffect(() => {
+    if (appUser?.role !== 'admin') return;
+    getContributorApplications('pending')
+      .then(apps => setPendingApplications(apps.length))
+      .catch(() => {});
+  }, [appUser?.role]);
 
   const handleSearch = (query: string, category: Category | null = null) => {
     setSearchQuery(query);
@@ -98,11 +107,11 @@ export default function App() {
               <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center overflow-hidden shadow-xl">
                 <img
                   src="/images/repo-logo.png"
-                  alt="Namibian Digital Language Repository logo"
+                  alt="Namibian Digital Platform logo"
                   className="h-full w-full object-cover"
                 />
               </div>
-              <h1 className="text-xl font-display font-bold tracking-tight hidden sm:block">Namibian Digital Language Repository</h1>
+              <h1 className="text-xl font-display font-bold tracking-tight hidden sm:block">Namibian Digital Platform</h1>
             </motion.div>
 
             <div className="sm:hidden">
@@ -112,7 +121,7 @@ export default function App() {
                 onOpenUpload={() => setShowUpload(true)}
                 onOpenAdmin={() => setShowAdminPanel(true)}
                 onOpenSettings={() => setShowSettings(true)}
-                hasPendingUsers={false}
+                hasPendingUsers={pendingApplications > 0}
               />
             </div>
           </div>
@@ -142,7 +151,7 @@ export default function App() {
                 onOpenUpload={() => setShowUpload(true)}
                 onOpenAdmin={() => setShowAdminPanel(true)}
                 onOpenSettings={() => setShowSettings(true)}
-                hasPendingUsers={false}
+                hasPendingUsers={pendingApplications > 0}
               />
             </div>
           </div>
@@ -213,6 +222,7 @@ export default function App() {
         {showAdminPanel && (
           <AdminPanel 
             onClose={() => setShowAdminPanel(false)}
+            onPendingApplicationsChange={setPendingApplications}
           />
         )}
         {showSettings && (

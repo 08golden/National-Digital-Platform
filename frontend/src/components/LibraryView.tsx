@@ -152,7 +152,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-white/35">
                   <Archive size={14} />
-                  Repository archive
+                  Namibian Digital Platform
                 </div>
                 <h2 className="mt-1 truncate font-display text-2xl font-bold tracking-tight md:text-3xl">Digital Library</h2>
               </div>

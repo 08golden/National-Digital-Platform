@@ -9,6 +9,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name?: string, intent?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshAppUser: () => Promise<void>;
   loading: boolean;
 }
 
@@ -88,8 +89,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setAppUser(null);
   };
 
+  const refreshAppUser = async () => {
+    if (user) await fetchAppUser(user.id);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, appUser, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ user, appUser, signUp, signIn, signOut, refreshAppUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -4,10 +4,12 @@ import {
   X, Play, Pause, SkipForward, SkipBack, 
   Volume2, Download, Share2, Clock, Calendar, 
   User, FileText, Music, Video, Book, 
-  ChevronRight, ChevronLeft, Expand
+  ChevronRight, ChevronLeft, Expand, Lock, Loader2, CheckCircle2
 } from 'lucide-react';
 import { ContentItem } from '../types';
 import { cn } from '../lib/utils';
+import { useShareRequests } from '../contexts/ShareRequestsContext';
+import { ShareRequestModal } from './ShareRequestModal';
 
 interface ContentDetailsProps {
   item: ContentItem;
@@ -35,8 +37,45 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8);
   const [isExpanded, setIsExpanded] = useState(false);
-  
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'done' | 'error'>('idle');
+
+  const { getRequestForContent } = useShareRequests();
+
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Per the platform's data-use policy: a recording without an explicit
+  // dataUseConsent is treated as legacy/public content and defaults to
+  // permissive. Once a contributor has set a policy, it's authoritative.
+  const allowDownload = item.dataUseConsent?.allowDownload !== false;
+  const allowSharing = item.dataUseConsent?.allowSharing !== false;
+  const existingShareRequest = getRequestForContent(item.id);
+
+  const handleDownload = async () => {
+    if (!allowDownload || !item.url) return;
+    setDownloadState('downloading');
+    try {
+      const res = await fetch(item.url);
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const ext = item.url.split('.').pop()?.split('?')[0] || 'bin';
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `${item.title.replace(/[^a-z0-9\-_ ]/gi, '').trim() || 'download'}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+      setDownloadState('done');
+      setTimeout(() => setDownloadState('idle'), 2500);
+    } catch {
+      // CORS or network failure — fall back to opening the asset directly so
+      // the user can still save it via the browser's own "Save As".
+      window.open(item.url, '_blank', 'noopener,noreferrer');
+      setDownloadState('idle');
+    }
+  };
 
   useEffect(() => {
     if (audioRef.current) {
@@ -327,14 +366,63 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
           <section className="space-y-6">
             <h3 className="text-sm font-bold uppercase tracking-widest text-white/30 px-1">Actions</h3>
             <div className="flex flex-col gap-3">
-              <button id="btn-download-resource" className="w-full h-14 bg-white text-black rounded-2xl font-bold flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all">
-                <Download size={20} />
-                Download Resource
+              <button
+                id="btn-download-resource"
+                onClick={handleDownload}
+                disabled={!allowDownload || !item.url || downloadState === 'downloading'}
+                title={!allowDownload ? 'The contributor has restricted downloads for this item.' : undefined}
+                className={cn(
+                  "w-full h-14 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all",
+                  allowDownload && item.url
+                    ? "bg-white text-black hover:scale-[1.02] active:scale-[0.98]"
+                    : "bg-white/5 text-white/30 cursor-not-allowed"
+                )}
+              >
+                {downloadState === 'downloading' ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    Preparing download...
+                  </>
+                ) : downloadState === 'done' ? (
+                  <>
+                    <CheckCircle2 size={20} />
+                    Downloaded
+                  </>
+                ) : allowDownload ? (
+                  <>
+                    <Download size={20} />
+                    Download Resource
+                  </>
+                ) : (
+                  <>
+                    <Lock size={20} />
+                    Download Restricted
+                  </>
+                )}
               </button>
-              <button className="w-full h-14 glass rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-white/10 transition-all">
-                <Share2 size={20} />
-                Share Link
-              </button>
+
+              {!allowDownload && (
+                <p className="text-xs text-white/30 px-1 leading-relaxed">
+                  {allowSharing
+                    ? "This item's data-use policy restricts direct downloads. You can request access instead."
+                    : "This item's data-use policy restricts both downloads and share requests."}
+                </p>
+              )}
+
+              {allowSharing && (
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  disabled={Boolean(existingShareRequest && existingShareRequest.status === 'pending')}
+                  className="w-full h-14 glass rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Share2 size={20} />
+                  {existingShareRequest?.status === 'pending'
+                    ? 'Share Request Pending'
+                    : existingShareRequest?.status === 'approved'
+                    ? 'View Share Link'
+                    : 'Request Share Access'}
+                </button>
+              )}
             </div>
           </section>
 
@@ -368,6 +456,12 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
           </div>
         </div>
       </motion.div>
+
+      <AnimatePresence>
+        {showShareModal && (
+          <ShareRequestModal item={item} onClose={() => setShowShareModal(false)} />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

@@ -58,7 +58,7 @@ export const AuthGate: React.FC = () => {
           >
             <img
               src="/images/repo-logo.png"
-              alt="Namibian Digital Language Repository logo"
+              alt="Namibian Digital Platform logo"
               className="h-full w-full object-cover"
             />
           </motion.div>
