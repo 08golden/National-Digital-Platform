@@ -80,7 +80,12 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
 
       if (uploadError) throw uploadError;
 
-      // Create DB record via backend API
+      // Create DB record via backend API — requireContributor on the
+      // backend needs the caller's Supabase access token.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Your session has expired. Please sign in again.');
+
       const payload = {
         title: selectedFile.name,
         description: details.contributionPurpose || '',
@@ -91,7 +96,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
       const BASE_URL = import.meta.env.VITE_API_URL || '';
       const res = await fetch(`${BASE_URL}/api/recordings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       });
 
