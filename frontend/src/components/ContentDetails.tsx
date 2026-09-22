@@ -76,7 +76,15 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
-      const ext = resolvedUrl.split('.').pop()?.split('?')[0] || 'bin';
+      // Derive the extension from the actual storage path when we have one
+      // (never has a query string) rather than the resolved URL: Supabase
+      // signed URLs carry a JWT in the ?token= query param, and JWTs
+      // contain dots (header.payload.signature) — naively splitting the
+      // whole URL on '.' and taking the last piece grabs a chunk of the
+      // token's signature instead of the real file extension, producing a
+      // garbage filename the OS can't recognize.
+      const extSource = item.storagePath || resolvedUrl.split('?')[0];
+      const ext = extSource.split('.').pop() || 'bin';
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = `${item.title.replace(/[^a-z0-9\-_ ]/gi, '').trim() || 'download'}.${ext}`;
