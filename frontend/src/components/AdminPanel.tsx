@@ -15,6 +15,9 @@ import {
   getContributorApplications,
   rejectContributorApplication,
 } from '../lib/api/contributorApplications';
+import { updateRecordingStatus, deleteRecording } from '../lib/api/recordings';
+import { ModerationItem } from './ModerationTab';
+import { UploadItem } from './UploadsTab';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -34,9 +37,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
   const [applicationsError, setApplicationsError] = useState('');
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
+  const [recordings, setRecordings] = useState<any[]>([]);
+  const [recordingsLoading, setRecordingsLoading] = useState(true);
+  const [recordingsError, setRecordingsError] = useState('');
+  const [recordingActionId, setRecordingActionId] = useState<string | null>(null);
+
   useEffect(() => {
     fetchUsers();
     fetchApplications();
+    fetchRecordings();
   }, []);
 
   const fetchUsers = async () => {
@@ -89,6 +98,66 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
     }
   };
 
+  const fetchRecordings = async () => {
+    setRecordingsLoading(true);
+    setRecordingsError('');
+    const { data, error } = await supabase
+      .from('recordings')
+      .select('id, title, status, created_at, uploaded_by, language_id, users(username, display_name), languages(name)')
+      .order('created_at', { ascending: false });
+    if (error) {
+      setRecordingsError(error.message || 'Failed to load uploads.');
+    } else if (data) {
+      setRecordings(data);
+    }
+    setRecordingsLoading(false);
+  };
+
+  const toModerationItem = (r: any): ModerationItem => ({
+    id: r.id,
+    filename: r.title,
+    uploadedBy: r.users?.display_name || r.users?.username || 'Unknown contributor',
+    status: r.status,
+    languageName: r.languages?.name,
+    createdAt: r.created_at,
+  });
+
+  const handlePublish = async (id: string) => {
+    setRecordingActionId(id);
+    try {
+      await updateRecordingStatus(id, 'published');
+      await fetchRecordings();
+    } catch (e) {
+      setRecordingsError(e instanceof Error ? e.message : 'Failed to publish recording.');
+    } finally {
+      setRecordingActionId(null);
+    }
+  };
+
+  const handleRejectRecording = async (id: string) => {
+    setRecordingActionId(id);
+    try {
+      await updateRecordingStatus(id, 'rejected');
+      await fetchRecordings();
+    } catch (e) {
+      setRecordingsError(e instanceof Error ? e.message : 'Failed to reject recording.');
+    } finally {
+      setRecordingActionId(null);
+    }
+  };
+
+  const handleArchiveRecording = async (id: string) => {
+    setRecordingActionId(id);
+    try {
+      await deleteRecording(id);
+      await fetchRecordings();
+    } catch (e) {
+      setRecordingsError(e instanceof Error ? e.message : 'Failed to archive recording.');
+    } finally {
+      setRecordingActionId(null);
+    }
+  };
+
   const updateRole = async (userId: string, newRole: 'admin' | 'contributor' | 'viewer') => {
     await supabase.from('users').update({ role: newRole }).eq('id', userId);
     fetchUsers();
@@ -105,8 +174,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
   const contributors = allUsers.filter(u => u.role === 'contributor');
   const viewers = allUsers.filter(u => u.role === 'viewer');
 
-  const mockUploads: any[] = [];
-  const mockModerationFiles: any[] = [];
+  const pendingModeration = recordings.filter(r => r.status === 'pending').map(toModerationItem);
+  const allUploads: UploadItem[] = recordings.map(toModerationItem);
 
   return (
     <motion.div
@@ -159,7 +228,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                   )}
                 </>
               )}
-              {tab === 'moderation' && <><MessageSquare size={16} className="inline mr-2" /> Moderation</>}
+              {tab === 'moderation' && (
+                <>
+                  <MessageSquare size={16} className="inline mr-2" />
+                  Moderation
+                  {pendingModeration.length > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-black text-[10px] font-black">
+                      {pendingModeration.length}
+                    </span>
+                  )}
+                </>
+              )}
               {tab === 'uploads' && <><Upload size={16} className="inline mr-2" /> Uploads</>}
               {tab === 'share-requests' && (
                 <>
@@ -314,19 +393,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
 
           {activeTab === 'moderation' && (
             <ModerationTab
-              uploads={mockModerationFiles}
-              onSelectFile={() => {}}
-              onDeleteFiles={() => {}}
-              onChangeStatus={() => {}}
+              uploads={pendingModeration}
+              loading={recordingsLoading}
+              error={recordingsError}
+              onRetry={fetchRecordings}
+              onApprove={handlePublish}
+              onReject={handleRejectRecording}
+              reviewingId={recordingActionId}
             />
           )}
 
           {activeTab === 'uploads' && (
             <UploadsTab
-              uploads={mockUploads}
-              onDeleteFiles={() => {}}
-              onChangeStatus={() => {}}
-              onSelectFile={() => {}}
+              uploads={allUploads}
+              loading={recordingsLoading}
+              error={recordingsError}
+              onRetry={fetchRecordings}
+              onArchive={handleArchiveRecording}
+              archivingId={recordingActionId}
             />
           )}
 
