@@ -10,6 +10,7 @@ import { ContentItem } from '../types';
 import { cn } from '../lib/utils';
 import { useShareRequests } from '../contexts/ShareRequestsContext';
 import { ShareRequestModal } from './ShareRequestModal';
+import { getRecordingSignedUrl } from '../lib/api/recordings';
 
 interface ContentDetailsProps {
   item: ContentItem;
@@ -39,10 +40,26 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'done' | 'error'>('idle');
+  const [resolvedUrl, setResolvedUrl] = useState<string | undefined>(item.url);
+  const [urlError, setUrlError] = useState('');
 
   const { getRequestForContent } = useShareRequests();
 
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Real uploads only carry a storagePath (the 'recordings' bucket is
+  // private) — mock/demo items carry a ready-to-use url directly. Resolve a
+  // short-lived signed URL on open rather than baking one into every list
+  // item, since signed URLs expire and shouldn't be generated in bulk.
+  useEffect(() => {
+    setResolvedUrl(item.url);
+    setUrlError('');
+    if (!item.url && item.storagePath) {
+      getRecordingSignedUrl(item.storagePath)
+        .then(setResolvedUrl)
+        .catch((e) => setUrlError(e instanceof Error ? e.message : 'Failed to load media'));
+    }
+  }, [item.id, item.url, item.storagePath]);
 
   // Per the platform's data-use policy: a recording without an explicit
   // dataUseConsent is treated as legacy/public content and defaults to
@@ -52,14 +69,14 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
   const existingShareRequest = getRequestForContent(item.id);
 
   const handleDownload = async () => {
-    if (!allowDownload || !item.url) return;
+    if (!allowDownload || !resolvedUrl) return;
     setDownloadState('downloading');
     try {
-      const res = await fetch(item.url);
+      const res = await fetch(resolvedUrl);
       if (!res.ok) throw new Error('Download failed');
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
-      const ext = item.url.split('.').pop()?.split('?')[0] || 'bin';
+      const ext = resolvedUrl.split('.').pop()?.split('?')[0] || 'bin';
       const a = document.createElement('a');
       a.href = blobUrl;
       a.download = `${item.title.replace(/[^a-z0-9\-_ ]/gi, '').trim() || 'download'}.${ext}`;
@@ -72,7 +89,7 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
     } catch {
       // CORS or network failure — fall back to opening the asset directly so
       // the user can still save it via the browser's own "Save As".
-      window.open(item.url, '_blank', 'noopener,noreferrer');
+      window.open(resolvedUrl, '_blank', 'noopener,noreferrer');
       setDownloadState('idle');
     }
   };
@@ -198,13 +215,16 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
                 <div className="text-center">
                   <h2 className="text-4xl font-display font-bold mb-4 tracking-tight">{item.title}</h2>
                   <p className="text-white/40 text-lg">{item.author || "Cultural Heritage Audio"}</p>
+                  {urlError && (
+                    <p className="mt-2 text-sm text-red-400">Couldn't load this media: {urlError}</p>
+                  )}
                 </div>
 
                 {/* Full Audio Player UI */}
                 <div id="audio-player-container" className="w-full max-w-xl space-y-6 glass p-8 rounded-[2rem]">
                   <audio 
                     ref={audioRef}
-                    src={item.url || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"}
+                    src={resolvedUrl || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"}
                     onTimeUpdate={handleTimeUpdate}
                     onLoadedMetadata={handleLoadedMetadata}
                     onEnded={() => {
@@ -369,11 +389,11 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
               <button
                 id="btn-download-resource"
                 onClick={handleDownload}
-                disabled={!allowDownload || !item.url || downloadState === 'downloading'}
+                disabled={!allowDownload || !resolvedUrl || downloadState === 'downloading'}
                 title={!allowDownload ? 'The contributor has restricted downloads for this item.' : undefined}
                 className={cn(
                   "w-full h-14 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all",
-                  allowDownload && item.url
+                  allowDownload && resolvedUrl
                     ? "bg-white text-black hover:scale-[1.02] active:scale-[0.98]"
                     : "bg-white/5 text-white/30 cursor-not-allowed"
                 )}

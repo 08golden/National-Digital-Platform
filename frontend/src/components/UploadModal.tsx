@@ -35,6 +35,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [languagesError, setLanguagesError] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [allowDownload, setAllowDownload] = useState(true);
+  const [allowSharing, setAllowSharing] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
@@ -91,6 +93,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
         description: details.contributionPurpose || '',
         language_id: details.languageId,
         storage_path: uploadData.path,
+        category: selectedCategory,
+        allow_download: allowDownload,
+        allow_sharing: allowSharing,
       };
 
       const BASE_URL = import.meta.env.VITE_API_URL || '';
@@ -281,6 +286,31 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                       {cat}
                     </button>
                   ))}
+                </div>
+
+                <div className="mb-8 space-y-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Data-Use Policy</div>
+                  <label className="flex items-center justify-between gap-4 text-sm text-white/70">
+                    <span>Allow other users to download this directly</span>
+                    <input
+                      type="checkbox"
+                      checked={allowDownload}
+                      onChange={(e) => setAllowDownload(e.target.checked)}
+                      className="h-5 w-5 accent-amber-500"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between gap-4 text-sm text-white/70">
+                    <span>Allow other users to request share access</span>
+                    <input
+                      type="checkbox"
+                      checked={allowSharing}
+                      onChange={(e) => setAllowSharing(e.target.checked)}
+                      className="h-5 w-5 accent-amber-500"
+                    />
+                  </label>
+                  <p className="text-xs text-white/35">
+                    You can restrict access if this content is culturally sensitive or you'd rather review requests individually.
+                  </p>
                 </div>
 
                 <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 mb-8">

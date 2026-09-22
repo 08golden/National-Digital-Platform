@@ -1,5 +1,6 @@
 const BASE_URL = import.meta.env.VITE_API_URL;
 import { supabase } from '../supabaseClient';
+import { ContentItem } from '../../types';
 
 export async function getRecordings() {
   const res = await fetch(`${BASE_URL}/api/recordings`);
@@ -63,4 +64,55 @@ export async function deleteRecording(id: string) {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error);
   return json;
+}
+
+/**
+ * Maps a `recordings` row (as returned by the query below, with its
+ * `languages`/`users` embeds) onto the ContentItem shape the Library/Search
+ * UI expects.
+ */
+function mapRecordingToContentItem(row: any): ContentItem {
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category || 'Audio',
+    languageId: row.language_id,
+    description: row.description || '',
+    storagePath: row.storage_path || undefined,
+    author: row.users?.display_name || row.users?.username || undefined,
+    date: row.created_at,
+    dataUseConsent: {
+      allowDownload: row.allow_download !== false,
+      allowSharing: row.allow_sharing !== false,
+    },
+  };
+}
+
+/**
+ * Fetches every published recording directly via the Supabase client (RLS
+ * allows anyone to read status='published' rows), joined with language and
+ * uploader names, and maps them onto ContentItem for the Library/Search UI.
+ */
+export async function getPublishedContentItems(): Promise<ContentItem[]> {
+  const { data, error } = await supabase
+    .from('recordings')
+    .select('id, title, description, category, storage_path, created_at, language_id, allow_download, allow_sharing, languages(name), users(username, display_name)')
+    .eq('status', 'published')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapRecordingToContentItem);
+}
+
+/**
+ * The 'recordings' storage bucket is private, so playback/download needs a
+ * short-lived signed URL rather than a public one. Resolved lazily (e.g.
+ * when a ContentDetails view opens) rather than for every item in a grid.
+ */
+export async function getRecordingSignedUrl(storagePath: string, expiresInSeconds = 3600): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from('recordings')
+    .createSignedUrl(storagePath, expiresInSeconds);
+  if (error || !data?.signedUrl) throw new Error(error?.message || 'Failed to create signed URL');
+  return data.signedUrl;
 }

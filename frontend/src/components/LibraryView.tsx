@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   FileText, Music, Video, Book, Globe2,
@@ -7,11 +7,12 @@ import {
   UploadCloud, Star, User, ShieldCheck, ChevronRight
 } from 'lucide-react';
 import { Category, ContentItem } from '../types';
-import { MOCK_CONTENT, CATEGORIES, LANGUAGES } from '../constants';
+import { CATEGORIES, LANGUAGES } from '../constants';
 import { cn } from '../lib/utils';
 import { searchContent } from '../lib/search';
 import { ContentDetails } from './ContentDetails';
 import { useAuth } from '../contexts/AuthContext';
+import { getPublishedContentItems } from '../lib/api/recordings';
 
 interface LibraryViewProps {
   languageId: string;
@@ -59,6 +60,23 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const [libraryScope, setLibraryScope] = useState<LibraryScope>('all');
   const isAdmin = appUser?.role === 'admin';
 
+  const [content, setContent] = useState<ContentItem[]>([]);
+  const [contentLoading, setContentLoading] = useState(true);
+  const [contentError, setContentError] = useState('');
+
+  const fetchContent = () => {
+    setContentLoading(true);
+    setContentError('');
+    getPublishedContentItems()
+      .then(setContent)
+      .catch((e) => setContentError(e instanceof Error ? e.message : 'Failed to load the library.'))
+      .finally(() => setContentLoading(false));
+  };
+
+  useEffect(() => {
+    fetchContent();
+  }, []);
+
   const updateSelectedCategory = (category: Category | null) => {
     setLibraryScope('all');
     setSelectedCategory(category);
@@ -73,17 +91,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   };
 
   const searchedContent = useMemo(
-    () => searchContent(MOCK_CONTENT, {
+    () => searchContent(content, {
       query: searchQuery,
       languageId: browseLanguageId,
       category: selectedCategory,
     }),
-    [browseLanguageId, searchQuery, selectedCategory]
+    [content, browseLanguageId, searchQuery, selectedCategory]
   );
 
   const scopedContent = useMemo(
-    () => MOCK_CONTENT.filter(item => browseLanguageId === 'all' || item.languageId === browseLanguageId),
-    [browseLanguageId]
+    () => content.filter(item => browseLanguageId === 'all' || item.languageId === browseLanguageId),
+    [content, browseLanguageId]
   );
 
   const languageOptions = LANGUAGES;
@@ -202,8 +220,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 <div className="p-2">
                   {languageOptions.map((language) => {
                     const count = language.id === 'all'
-                      ? MOCK_CONTENT.length
-                      : MOCK_CONTENT.filter(item => item.languageId === language.id).length;
+                      ? content.length
+                      : content.filter(item => item.languageId === language.id).length;
                     const isActive = browseLanguageId === language.id;
 
                     return (
@@ -395,19 +413,40 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                   </div>
                 </div>
 
-                {filteredContent.length === 0 ? (
+                {contentLoading ? (
+                  <div className="flex flex-col items-center justify-center px-6 py-20 text-center text-white/40">
+                    Loading library...
+                  </div>
+                ) : contentError ? (
+                  <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
+                    <h4 className="text-lg font-bold text-red-400">Couldn't load the library</h4>
+                    <p className="mt-2 max-w-sm text-sm leading-6 text-white/40">{contentError}</p>
+                    <button
+                      onClick={fetchContent}
+                      className="mt-6 rounded-md bg-white px-4 py-2 text-sm font-bold text-black transition-colors hover:bg-amber-200"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : filteredContent.length === 0 ? (
                   <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
                     <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-white/[0.05]">
                       <Search size={28} className="text-white/25" />
                     </div>
                     <h4 className="text-lg font-bold">No resources found</h4>
-                    <p className="mt-2 max-w-sm text-sm leading-6 text-white/40">Try adjusting your search terms or selected repository type.</p>
-                    <button
-                      onClick={() => { setSearchQuery(''); setBrowseLanguageId('all'); updateSelectedCategory(null); }}
-                      className="mt-6 rounded-md bg-white px-4 py-2 text-sm font-bold text-black transition-colors hover:bg-amber-200"
-                    >
-                      Clear filters
-                    </button>
+                    <p className="mt-2 max-w-sm text-sm leading-6 text-white/40">
+                      {content.length === 0
+                        ? "Nothing has been published yet — approved contributor uploads will appear here."
+                        : "Try adjusting your search terms or selected repository type."}
+                    </p>
+                    {content.length > 0 && (
+                      <button
+                        onClick={() => { setSearchQuery(''); setBrowseLanguageId('all'); updateSelectedCategory(null); }}
+                        className="mt-6 rounded-md bg-white px-4 py-2 text-sm font-bold text-black transition-colors hover:bg-amber-200"
+                      >
+                        Clear filters
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div id="content-items-container" className="divide-y divide-white/10">

@@ -62,8 +62,11 @@ export async function POST(request: Request) {
       description: string | null
       language_id: string | null
       storage_path: string | null
+      category: 'Articles' | 'Audio' | 'Video' | 'Books'
+      allow_download: boolean
+      allow_sharing: boolean
     }>
-    const { title, description, language_id, storage_path } = body
+    const { title, description, language_id, storage_path, category, allow_download, allow_sharing } = body
 
     if (!title || (!language_id && !bypass)) {
       return Response.json(
@@ -111,7 +114,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const insertPayload: Record<string, string | null> = {
+    const insertPayload: Record<string, string | boolean | null> = {
       title: title ?? null,
       description: description ?? null,
       language_id: resolvedLanguageId ?? null,
@@ -120,6 +123,9 @@ export async function POST(request: Request) {
     }
 
     if (storage_path) insertPayload.storage_path = storage_path
+    if (category) insertPayload.category = category
+    if (allow_download !== undefined) insertPayload.allow_download = allow_download
+    if (allow_sharing !== undefined) insertPayload.allow_sharing = allow_sharing
 
     const { data, error } = await supabase
       .from('recordings')

@@ -30,6 +30,7 @@ export interface ContentItem {
   thumbnail?: string;
   transcript?: string;
   url?: string;
+  storagePath?: string;    // path in the private 'recordings' storage bucket; resolved to a signed url on demand
   author?: string;
   duration?: string;
   date?: string;

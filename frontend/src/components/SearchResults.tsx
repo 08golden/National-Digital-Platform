@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileText, Music, Video, Book, X, Search as SearchIcon, Globe } from 'lucide-react';
-import { Category } from '../types';
-import { MOCK_CONTENT, CATEGORIES, LANGUAGES } from '../constants';
+import { Category, ContentItem } from '../types';
+import { CATEGORIES, LANGUAGES } from '../constants';
 import { cn } from '../lib/utils';
 import { searchContent } from '../lib/search';
+import { getPublishedContentItems } from '../lib/api/recordings';
 
 interface SearchResultsProps {
   query: string;
@@ -21,14 +22,24 @@ const ICON_MAP = {
 
 export const SearchResults: React.FC<SearchResultsProps> = ({ query, languageId, onClose }) => {
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
+  const [content, setContent] = useState<ContentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getPublishedContentItems()
+      .then(setContent)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load results.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredResults = useMemo(() => {
-    return searchContent(MOCK_CONTENT, {
+    return searchContent(content, {
       query,
       languageId,
       category: activeCategory,
     });
-  }, [query, languageId, activeCategory]);
+  }, [content, query, languageId, activeCategory]);
 
   return (
     <motion.div
@@ -82,7 +93,13 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ query, languageId,
 
       {/* Results List */}
       <div className="overflow-y-auto p-6 space-y-8 custom-scrollbar" style={{ maxHeight: 'calc(70vh - 120px)' }}>
-        {filteredResults.length > 0 ? (
+        {loading ? (
+          <div className="py-12 text-center text-white/40">Loading...</div>
+        ) : error ? (
+          <div className="py-12 text-center">
+            <p className="text-red-400">{error}</p>
+          </div>
+        ) : filteredResults.length > 0 ? (
           filteredResults.map((item) => {
             const lang = LANGUAGES.find(l => l.id === item.languageId);
             return (
