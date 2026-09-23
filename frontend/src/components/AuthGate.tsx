@@ -131,32 +131,29 @@ export const AuthGate: React.FC = () => {
               />
             </div>
 
+            <div className="relative group">
+              <KeyRound className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-amber-500 transition-colors" size={20} />
+              <input
+                type="password"
+                placeholder="Security Key"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-14 sm:h-16 pl-14 pr-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
+                minLength={6}
+                required
+              />
+              {mode === 'login' && (
+                <div className="mt-3 flex items-center justify-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                  <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
+                    Use your Supabase test account
+                  </p>
+                </div>
+              )}
+            </div>
+
             <AnimatePresence mode="wait">
-              {mode === 'login' ? (
-                <motion.div
-                  key="login-pass"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="relative group"
-                >
-                  <KeyRound className="absolute left-5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-amber-500 transition-colors" size={20} />
-                  <input
-                    type="password"
-                    placeholder="Security Key"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full h-14 sm:h-16 pl-14 pr-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
-                    required
-                  />
-                  <div className="mt-3 flex items-center justify-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
-                    <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
-                      Use your Supabase test account
-                    </p>
-                  </div>
-                </motion.div>
-              ) : (
+              {mode === 'register' && (
                 <motion.div
                   key="reg-intent"
                   initial={{ opacity: 0, x: -20 }}
