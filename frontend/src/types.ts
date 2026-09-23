@@ -64,6 +64,7 @@ export interface AppUser {
   avatar_url?: string | null;
   metadata: Record<string, any>;
   is_active: boolean;
+  registration_status?: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
 }

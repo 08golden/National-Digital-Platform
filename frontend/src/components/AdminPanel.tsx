@@ -168,11 +168,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
     fetchUsers();
   };
 
+  const approveRegistration = async (userId: string) => {
+    setReviewingId(userId);
+    await supabase.from('users').update({ registration_status: 'approved', is_active: true }).eq('id', userId);
+    await fetchUsers();
+    setReviewingId(null);
+  };
+
+  const rejectRegistration = async (userId: string) => {
+    setReviewingId(userId);
+    await supabase.from('users').update({ registration_status: 'rejected', is_active: false }).eq('id', userId);
+    await fetchUsers();
+    setReviewingId(null);
+  };
+
   if (appUser?.role !== 'admin') return null;
 
   const admins = allUsers.filter(u => u.role === 'admin');
   const contributors = allUsers.filter(u => u.role === 'contributor');
   const viewers = allUsers.filter(u => u.role === 'viewer');
+  const pendingRegistrations = allUsers.filter(u => u.registration_status === 'pending');
 
   const pendingModeration = recordings.filter(r => r.status === 'pending').map(toModerationItem);
   const allUploads: UploadItem[] = recordings.map(toModerationItem);
@@ -216,7 +231,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                   : "text-white/50 hover:text-white hover:bg-white/5"
               )}
             >
-              {tab === 'users' && <><UserCheck size={16} className="inline mr-2" /> Users</>}
+              {tab === 'users' && (
+                <>
+                  <UserCheck size={16} className="inline mr-2" />
+                  Users
+                  {pendingRegistrations.length > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-black text-[10px] font-black">
+                      {pendingRegistrations.length}
+                    </span>
+                  )}
+                </>
+              )}
               {tab === 'applications' && (
                 <>
                   <ClipboardList size={16} className="inline mr-2" />
@@ -275,6 +300,38 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
               <div className="text-center py-20 text-white/40">No users found yet.</div>
             ) : (
               <div className="space-y-10">
+                {pendingRegistrations.length > 0 && (
+                  <section>
+                    <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-amber-500 mb-4">
+                      Pending Registrations ({pendingRegistrations.length})
+                    </h3>
+                    {pendingRegistrations.map(u => (
+                      <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2 border border-amber-500/20">
+                        <div>
+                          <p className="font-bold">{u.display_name || u.username}</p>
+                          <p className="text-sm text-white/40">{u.email}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => approveRegistration(u.id)}
+                            disabled={reviewingId === u.id}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-all disabled:opacity-50"
+                          >
+                            <Check size={14} /> Approve
+                          </button>
+                          <button
+                            onClick={() => rejectRegistration(u.id)}
+                            disabled={reviewingId === u.id}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs font-bold hover:bg-red-500/30 transition-all disabled:opacity-50"
+                          >
+                            <X size={14} /> Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                )}
+
                 <section>
                   <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-amber-500 mb-4">Admins</h3>
                   {admins.map(u => (

@@ -67,9 +67,16 @@ export default function App() {
   }
 
   if (!appUser.is_active) {
+    const status = appUser.registration_status;
+    const message =
+      status === 'pending'
+        ? "Your application is under review. You'll be able to sign in once an admin approves it."
+        : status === 'rejected'
+        ? "Your application wasn't approved. Contact an administrator if you think this is a mistake."
+        : "Your account has been deactivated. Contact an administrator.";
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white">
-        <p>Your account has been deactivated. Contact an administrator.</p>
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white px-6 text-center">
+        <p>{message}</p>
       </div>
     );
   }
