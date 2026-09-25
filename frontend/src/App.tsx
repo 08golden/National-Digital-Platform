@@ -70,7 +70,7 @@ export default function App() {
     const status = appUser.registration_status;
     const message =
       status === 'pending'
-        ? "Your application is under review. You'll be able to sign in once an admin approves it."
+        ? "Please hold on while our team reviews your application — you'll be able to sign in as soon as it's approved."
         : status === 'rejected'
         ? "Your application wasn't approved. Contact an administrator if you think this is a mistake."
         : "Your account has been deactivated. Contact an administrator.";

@@ -61,8 +61,45 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   };
 
   // Handle file selection
+  const [fileError, setFileError] = useState('');
+
+  // Each category expects a real, matching file type — this is what was
+  // silently broken before: the file input's accept list had no document
+  // MIME types at all, so choosing "Articles" hid every PDF in the picker.
+  const CATEGORY_FILE_RULES: Record<Category, { accept: string; test: (f: File) => boolean; hint: string }> = {
+    Articles: {
+      accept: '.pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain',
+      test: (f) => /\.(pdf|docx?|txt)$/i.test(f.name) || f.type === 'application/pdf' || f.type.startsWith('text/'),
+      hint: 'Articles should be a PDF, Word document, or text file.',
+    },
+    Books: {
+      accept: '.pdf,.epub,.doc,.docx,application/pdf,application/epub+zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      test: (f) => /\.(pdf|epub|docx?)$/i.test(f.name) || f.type === 'application/pdf' || f.type === 'application/epub+zip',
+      hint: 'Books should be a PDF, EPUB, or Word document.',
+    },
+    Audio: {
+      accept: 'audio/*,.mp3,.wav,.m4a',
+      test: (f) => f.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg)$/i.test(f.name),
+      hint: 'Audio should be an audio file (MP3, WAV, M4A...).',
+    },
+    Video: {
+      accept: 'video/*,.mp4,.mov,.mkv',
+      test: (f) => f.type.startsWith('video/') || /\.(mp4|mov|mkv|webm)$/i.test(f.name),
+      hint: 'Video should be a video file (MP4, MOV...).',
+    },
+  };
+
   const handleFileChange = (file?: File) => {
+    setFileError('');
     if (!file) return;
+    if (selectedCategory) {
+      const rule = CATEGORY_FILE_RULES[selectedCategory];
+      if (!rule.test(file)) {
+        setFileError(`"${file.name}" doesn't look like a ${selectedCategory.toLowerCase()} file. ${rule.hint}`);
+        setSelectedFile(null);
+        return;
+      }
+    }
     setSelectedFile(file);
   };
 
@@ -315,14 +352,22 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
 
                 <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 mb-8">
                   <Upload size={32} className="text-white/20" />
-                  <p className="text-xs text-white/40 text-center">Drag and drop your file here or click to browse</p>
+                  <p className="text-xs text-white/40 text-center">
+                    {selectedCategory
+                      ? `Drag and drop your ${selectedCategory.toLowerCase()} file here or click to browse`
+                      : 'Pick a category above first'}
+                  </p>
                   <input
                     type="file"
-                    accept="audio/*,video/*,text/*"
+                    accept={selectedCategory ? CATEGORY_FILE_RULES[selectedCategory].accept : undefined}
+                    disabled={!selectedCategory}
                     onChange={(e) => handleFileChange(e.target.files ? e.target.files[0] : undefined)}
-                    className="mt-2 w-full text-sm text-white/40"
+                    className="mt-2 w-full text-sm text-white/40 disabled:opacity-40"
                   />
-                  {selectedFile && (
+                  {fileError && (
+                    <p className="text-xs text-red-400 text-center">{fileError}</p>
+                  )}
+                  {selectedFile && !fileError && (
                     <div className="mt-2 text-xs text-white/60">Selected: {selectedFile.name}</div>
                   )}
                 </div>

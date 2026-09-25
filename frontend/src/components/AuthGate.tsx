@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { KeyRound, Mail, UserPlus, Loader2, ArrowRight } from 'lucide-react';
+import { KeyRound, Mail, UserPlus, Loader2, ArrowRight, BookOpen, Upload } from 'lucide-react';
 import { cn } from '../lib/utils';
+
+const DESCRIBES_YOU_OPTIONS = ['Researcher', 'Educator', 'Student', 'Cultural Practitioner / Artist', 'Other'];
 
 export const AuthGate: React.FC = () => {
   const { signIn, signUp } = useAuth();
@@ -10,7 +12,10 @@ export const AuthGate: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [intent, setIntent] = useState('');
+  const [describesYou, setDescribesYou] = useState('');
+  const [describesYouOther, setDescribesYouOther] = useState('');
+  const [desiredRole, setDesiredRole] = useState<'viewer' | 'contributor'>('viewer');
+  const [contributionDetails, setContributionDetails] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,7 +28,15 @@ export const AuthGate: React.FC = () => {
       if (mode === 'login') {
         await signIn(email, password);
       } else {
-        await signUp(email, password, name, intent);
+        const who = describesYou === 'Other' ? describesYouOther : describesYou;
+        await signUp(
+          email,
+          password,
+          name,
+          who,
+          desiredRole,
+          desiredRole === 'contributor' ? contributionDetails : undefined
+        );
         alert('Your application has been received. If email confirmation is on, check your inbox.');
         setMode('login');
         setPassword('');
@@ -155,19 +168,100 @@ export const AuthGate: React.FC = () => {
             <AnimatePresence mode="wait">
               {mode === 'register' && (
                 <motion.div
-                  key="reg-intent"
+                  key="reg-details"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="relative group"
+                  className="space-y-4"
                 >
-                  <textarea
-                    placeholder="State your intent... (e.g. Scholar, Researcher, Student)"
-                    value={intent}
-                    onChange={(e) => setIntent(e.target.value)}
-                    className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base min-h-28 sm:min-h-[140px] resize-none"
-                    required={mode === 'register'}
-                  />
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-white/30 mb-3 px-1">
+                      What best describes you?
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {DESCRIBES_YOU_OPTIONS.map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setDescribesYou(opt)}
+                          className={cn(
+                            "px-4 py-2 rounded-full text-sm font-medium border transition-all",
+                            describesYou === opt
+                              ? "bg-amber-500 border-amber-500 text-black"
+                              : "border-white/10 text-white/50 hover:border-white/30"
+                          )}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                    {describesYou === 'Other' && (
+                      <input
+                        type="text"
+                        placeholder="Tell us more..."
+                        value={describesYouOther}
+                        onChange={(e) => setDescribesYouOther(e.target.value)}
+                        className="mt-3 w-full h-12 px-4 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 text-sm"
+                        required
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-white/30 mb-3 px-1">
+                      What would you like to do here?
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setDesiredRole('viewer')}
+                        className={cn(
+                          "flex flex-col items-center gap-2 rounded-2xl border p-4 transition-all text-center",
+                          desiredRole === 'viewer'
+                            ? "bg-amber-500 border-amber-500 text-black"
+                            : "border-white/10 text-white/50 hover:border-white/30"
+                        )}
+                      >
+                        <BookOpen size={20} />
+                        <span className="text-sm font-bold">Browse & Research</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDesiredRole('contributor')}
+                        className={cn(
+                          "flex flex-col items-center gap-2 rounded-2xl border p-4 transition-all text-center",
+                          desiredRole === 'contributor'
+                            ? "bg-amber-500 border-amber-500 text-black"
+                            : "border-white/10 text-white/50 hover:border-white/30"
+                        )}
+                      >
+                        <Upload size={20} />
+                        <span className="text-sm font-bold">Contribute Content</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <AnimatePresence mode="wait">
+                    {desiredRole === 'contributor' && (
+                      <motion.div
+                        key="contribution-details"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                      >
+                        <textarea
+                          placeholder="What would you like to contribute, and why? (e.g. recordings from fieldwork, transcriptions, cultural material)"
+                          value={contributionDetails}
+                          onChange={(e) => setContributionDetails(e.target.value)}
+                          className="w-full p-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base min-h-24 resize-none"
+                          required={desiredRole === 'contributor'}
+                        />
+                        <p className="mt-2 px-1 text-xs text-white/30">
+                          Contributor access is reviewed by an admin — you'll start as a viewer until it's approved.
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               )}
             </AnimatePresence>

@@ -130,7 +130,7 @@ export const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose }) => 
                 <div className="flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-300">
                   <Clock size={18} className="mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-semibold">Your application is under review.</p>
+                    <p className="font-semibold">Please hold on while our team reviews your application.</p>
                     <p className="mt-1 text-amber-200/70">
                       Submitted {new Date(application.submitted_at).toLocaleDateString()}. An admin will respond soon.
                     </p>

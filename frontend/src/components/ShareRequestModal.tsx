@@ -11,14 +11,22 @@ interface ShareRequestModalProps {
 
 export const ShareRequestModal: React.FC<ShareRequestModalProps> = ({ item, onClose }) => {
   const { submitRequest } = useShareRequests();
+  const [affiliation, setAffiliation] = useState('');
   const [reason, setReason] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const isComplete = affiliation.trim() && reason.trim();
+
   const handleSubmit = async () => {
-    if (!reason.trim() || loading) return;
+    if (!isComplete || loading) return;
     setLoading(true);
-    await submitRequest(item.id, item.title, reason.trim());
+    // Folded into one text field for now since share requests are still on
+    // an in-memory mock store (see lib/api/shareRequests.ts) rather than a
+    // real table — keeps this readable in the admin Share Requests tab
+    // without needing a schema change there too.
+    const combined = `Affiliation / Institution: ${affiliation.trim()}\n\n${reason.trim()}`;
+    await submitRequest(item.id, item.title, combined);
     setSubmitted(true);
     setLoading(false);
   };
@@ -57,6 +65,17 @@ export const ShareRequestModal: React.FC<ShareRequestModalProps> = ({ item, onCl
                 </p>
 
                 <label className="block text-xs font-bold text-white/40 uppercase tracking-widest mb-2">
+                  Affiliation / Institution
+                </label>
+                <input
+                  type="text"
+                  value={affiliation}
+                  onChange={e => setAffiliation(e.target.value)}
+                  placeholder="e.g. University of Namibia, Linguistics Department"
+                  className="w-full h-12 bg-white/5 border border-white/10 rounded-2xl px-4 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors mb-4"
+                />
+
+                <label className="block text-xs font-bold text-white/40 uppercase tracking-widest mb-2">
                   Purpose / Reason
                 </label>
                 <textarea
@@ -69,7 +88,7 @@ export const ShareRequestModal: React.FC<ShareRequestModalProps> = ({ item, onCl
 
                 <button
                   onClick={handleSubmit}
-                  disabled={!reason.trim() || loading}
+                  disabled={!isComplete || loading}
                   className="w-full h-12 bg-amber-500 text-black font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:bg-amber-400 active:scale-[0.98]"
                 >
                   <SendHorizonal size={18} />
