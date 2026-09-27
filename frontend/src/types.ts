@@ -24,7 +24,7 @@ export interface DataUseConsent {
 export interface ContentItem {
   id: string;
   title: string;
-  category: Category;
+  category: Category; // legacy flat category — kept for old mock/pre-taxonomy rows; prefer categoryGroupId/categorySubtypeId below when present
   languageId: string;
   description: string;
   thumbnail?: string;
@@ -35,6 +35,12 @@ export interface ContentItem {
   duration?: string;
   date?: string;
   dataUseConsent?: DataUseConsent;
+  categoryGroupId?: string;      // e.g. "Cultural Material" node id
+  categoryGroupName?: string;
+  categorySubtypeId?: string;    // e.g. "Audio Recording" leaf node id
+  categorySubtypeName?: string;
+  mediaKind?: 'audio' | 'video' | 'document' | 'dataset'; // drives which player/card ContentDetails renders
+  topics?: string[];             // e.g. ["Culture", "Food"]
 }
 
 // ---- Share request flow ----

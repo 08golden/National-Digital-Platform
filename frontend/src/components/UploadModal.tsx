@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Upload, Loader2, FileCheck, ClipboardList, User, Building2, Languages } from 'lucide-react';
-import { Category } from '../types';
+import { X, Upload, Loader2, FileCheck, ClipboardList, User, Building2, Languages, Tag } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { getLanguages } from '../lib/api/languages';
-import { CATEGORIES } from '../constants';
+import { getCategoryTree, getTopics, CategoryNode, Topic, MediaKind } from '../lib/api/categories';
 import { cn } from '../lib/utils';
 
 interface UploadModalProps {
@@ -22,6 +21,29 @@ interface LanguageOption {
 // (see UserMenu) — becoming a contributor happens separately via the Contributor
 // Application flow in User Settings.
 
+const MEDIA_KIND_RULES: Record<MediaKind, { accept: string; test: (f: File) => boolean; hint: string }> = {
+  document: {
+    accept: '.pdf,.doc,.docx,.txt,.epub,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/epub+zip',
+    test: (f) => /\.(pdf|docx?|txt|epub)$/i.test(f.name) || f.type === 'application/pdf' || f.type.startsWith('text/') || f.type === 'application/epub+zip',
+    hint: 'This should be a PDF, Word document, text, or EPUB file.',
+  },
+  audio: {
+    accept: 'audio/*,.mp3,.wav,.m4a',
+    test: (f) => f.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg)$/i.test(f.name),
+    hint: 'This should be an audio file (MP3, WAV, M4A...).',
+  },
+  video: {
+    accept: 'video/*,.mp4,.mov,.mkv',
+    test: (f) => f.type.startsWith('video/') || /\.(mp4|mov|mkv|webm)$/i.test(f.name),
+    hint: 'This should be a video file (MP4, MOV...).',
+  },
+  dataset: {
+    accept: '.csv,.json,.tsv,.txt,.zip,text/csv,application/json,text/tab-separated-values,application/zip',
+    test: (f) => /\.(csv|json|tsv|txt|zip)$/i.test(f.name),
+    hint: 'This should be a data file (CSV, JSON, TSV, or a ZIP of files).',
+  },
+};
+
 export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   // "useState" is how we keep track of things that change in our app.
   // We keep track of the current step and what they selected.
@@ -34,7 +56,15 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   });
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [languagesError, setLanguagesError] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+
+  const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
+  const [categoryError, setCategoryError] = useState('');
+  const [selectedGroup, setSelectedGroup] = useState<CategoryNode | null>(null);
+  const [selectedSubtype, setSelectedSubtype] = useState<CategoryNode | null>(null);
+
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
+
   const [allowDownload, setAllowDownload] = useState(true);
   const [allowSharing, setAllowSharing] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -44,7 +74,19 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
     getLanguages()
       .then((data) => setLanguages(data))
       .catch((e) => setLanguagesError(e instanceof Error ? e.message : 'Failed to load languages'));
+    getCategoryTree()
+      .then(setCategoryTree)
+      .catch((e) => setCategoryError(e instanceof Error ? e.message : 'Failed to load categories'));
+    getTopics()
+      .then(setTopics)
+      .catch(() => {});
   }, []);
+
+  const toggleTopic = (id: string) => {
+    setSelectedTopicIds((current) =>
+      current.includes(id) ? current.filter((t) => t !== id) : [...current, id]
+    );
+  };
 
   const isDetailsComplete = [
     details.name,
@@ -63,39 +105,13 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   // Handle file selection
   const [fileError, setFileError] = useState('');
 
-  // Each category expects a real, matching file type — this is what was
-  // silently broken before: the file input's accept list had no document
-  // MIME types at all, so choosing "Articles" hid every PDF in the picker.
-  const CATEGORY_FILE_RULES: Record<Category, { accept: string; test: (f: File) => boolean; hint: string }> = {
-    Articles: {
-      accept: '.pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain',
-      test: (f) => /\.(pdf|docx?|txt)$/i.test(f.name) || f.type === 'application/pdf' || f.type.startsWith('text/'),
-      hint: 'Articles should be a PDF, Word document, or text file.',
-    },
-    Books: {
-      accept: '.pdf,.epub,.doc,.docx,application/pdf,application/epub+zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      test: (f) => /\.(pdf|epub|docx?)$/i.test(f.name) || f.type === 'application/pdf' || f.type === 'application/epub+zip',
-      hint: 'Books should be a PDF, EPUB, or Word document.',
-    },
-    Audio: {
-      accept: 'audio/*,.mp3,.wav,.m4a',
-      test: (f) => f.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg)$/i.test(f.name),
-      hint: 'Audio should be an audio file (MP3, WAV, M4A...).',
-    },
-    Video: {
-      accept: 'video/*,.mp4,.mov,.mkv',
-      test: (f) => f.type.startsWith('video/') || /\.(mp4|mov|mkv|webm)$/i.test(f.name),
-      hint: 'Video should be a video file (MP4, MOV...).',
-    },
-  };
-
   const handleFileChange = (file?: File) => {
     setFileError('');
     if (!file) return;
-    if (selectedCategory) {
-      const rule = CATEGORY_FILE_RULES[selectedCategory];
+    if (selectedSubtype?.mediaKind) {
+      const rule = MEDIA_KIND_RULES[selectedSubtype.mediaKind];
       if (!rule.test(file)) {
-        setFileError(`"${file.name}" doesn't look like a ${selectedCategory.toLowerCase()} file. ${rule.hint}`);
+        setFileError(`"${file.name}" doesn't look right for ${selectedSubtype.name}. ${rule.hint}`);
         setSelectedFile(null);
         return;
       }
@@ -105,12 +121,12 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
 
   // Upload file to Supabase Storage and create a recording via backend
   const handleUpload = async () => {
-    if (!selectedCategory || !selectedFile) return;
+    if (!selectedSubtype || !selectedFile) return;
     setStep('scanning');
     try {
       const fileExt = selectedFile.name.split('.').pop() || 'bin';
       const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
-      const storagePath = `${selectedCategory.toLowerCase()}/${fileName}`;
+      const storagePath = `${selectedSubtype.slug}/${fileName}`;
 
       // Upload to 'recordings' bucket
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -130,7 +146,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
         description: details.contributionPurpose || '',
         language_id: details.languageId,
         storage_path: uploadData.path,
-        category: selectedCategory,
+        category_id: selectedSubtype.id,
+        topic_ids: selectedTopicIds,
         allow_download: allowDownload,
         allow_sharing: allowSharing,
       };
@@ -308,22 +325,85 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 mb-8">
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={cn(
-                        "h-14 rounded-xl border transition-all text-sm font-medium",
-                        selectedCategory === cat
-                          ? "bg-amber-500 border-amber-500 text-black"
-                          : "glass border-white/10 text-white/60 hover:border-white/30"
-                      )}
-                    >
-                      {cat}
-                    </button>
-                  ))}
+                {categoryError && (
+                  <p className="mb-4 text-xs text-red-400">{categoryError}</p>
+                )}
+
+                <div className="mb-6">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400 mb-3">Content Group</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {categoryTree.map((group) => (
+                      <button
+                        key={group.id}
+                        onClick={() => { setSelectedGroup(group); setSelectedSubtype(null); setSelectedFile(null); setFileError(''); }}
+                        className={cn(
+                          "h-14 rounded-xl border transition-all text-sm font-medium px-3",
+                          selectedGroup?.id === group.id
+                            ? "bg-amber-500 border-amber-500 text-black"
+                            : "glass border-white/10 text-white/60 hover:border-white/30"
+                        )}
+                      >
+                        {group.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                <AnimatePresence mode="wait">
+                  {selectedGroup && (
+                    <motion.div
+                      key={selectedGroup.id}
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-6"
+                    >
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400 mb-3">
+                        {selectedGroup.name} — Type
+                      </p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {selectedGroup.children.map((sub) => (
+                          <button
+                            key={sub.id}
+                            onClick={() => { setSelectedSubtype(sub); setSelectedFile(null); setFileError(''); }}
+                            className={cn(
+                              "h-14 rounded-xl border transition-all text-sm font-medium px-3",
+                              selectedSubtype?.id === sub.id
+                                ? "bg-amber-500 border-amber-500 text-black"
+                                : "glass border-white/10 text-white/60 hover:border-white/30"
+                            )}
+                          >
+                            {sub.name}
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {topics.length > 0 && (
+                  <div className="mb-8">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400 mb-3 flex items-center gap-2">
+                      <Tag size={12} /> Topics (optional)
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {topics.map((topic) => (
+                        <button
+                          key={topic.id}
+                          onClick={() => toggleTopic(topic.id)}
+                          className={cn(
+                            "px-4 py-2 rounded-full text-xs font-medium border transition-all",
+                            selectedTopicIds.includes(topic.id)
+                              ? "bg-amber-500 border-amber-500 text-black"
+                              : "border-white/10 text-white/50 hover:border-white/30"
+                          )}
+                        >
+                          {topic.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="mb-8 space-y-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Data-Use Policy</div>
@@ -353,14 +433,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                 <div className="border-2 border-dashed border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 mb-8">
                   <Upload size={32} className="text-white/20" />
                   <p className="text-xs text-white/40 text-center">
-                    {selectedCategory
-                      ? `Drag and drop your ${selectedCategory.toLowerCase()} file here or click to browse`
-                      : 'Pick a category above first'}
+                    {selectedSubtype
+                      ? `Drag and drop your ${selectedSubtype.name.toLowerCase()} file here or click to browse`
+                      : 'Pick a content group and type above first'}
                   </p>
                   <input
                     type="file"
-                    accept={selectedCategory ? CATEGORY_FILE_RULES[selectedCategory].accept : undefined}
-                    disabled={!selectedCategory}
+                    accept={selectedSubtype?.mediaKind ? MEDIA_KIND_RULES[selectedSubtype.mediaKind].accept : undefined}
+                    disabled={!selectedSubtype}
                     onChange={(e) => handleFileChange(e.target.files ? e.target.files[0] : undefined)}
                     className="mt-2 w-full text-sm text-white/40 disabled:opacity-40"
                   />
@@ -374,7 +454,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
 
                 <button
                   onClick={handleUpload}
-                  disabled={!selectedCategory}
+                  disabled={!selectedSubtype || !selectedFile}
                   className="w-full h-12 bg-white text-black font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Start Scanning
@@ -425,7 +505,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                   <div className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Submitted</div>
                   <div className="text-xl font-display font-bold truncate">{selectedFile?.name}</div>
                   <div className="text-sm text-white/40 mt-2">
-                    {selectedCategory} · {languages.find(l => l.id === details.languageId)?.name || 'Unknown language'}
+                    {selectedSubtype?.name} · {languages.find(l => l.id === details.languageId)?.name || 'Unknown language'}
                   </div>
                 </div>
 

@@ -19,7 +19,7 @@ import { getContributorApplications } from './lib/api/contributorApplications';
 export default function App() {
   const { appUser, signOut, loading } = useAuth();
   const [selectedLanguageId, setSelectedLanguageId] = useState('all');
-  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [showLibrary, setShowLibrary] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -213,8 +213,6 @@ export default function App() {
           <LibraryView 
             languageId={selectedLanguageId} 
             initialSearchQuery={searchQuery}
-            initialCategory={activeCategory}
-            onCategoryChange={setActiveCategory}
             onClose={() => {
               setShowLibrary(false);
               setSearchQuery('');

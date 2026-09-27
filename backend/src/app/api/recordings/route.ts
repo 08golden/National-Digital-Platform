@@ -63,10 +63,12 @@ export async function POST(request: Request) {
       language_id: string | null
       storage_path: string | null
       category: 'Articles' | 'Audio' | 'Video' | 'Books'
+      category_id: string | null
+      topic_ids: string[]
       allow_download: boolean
       allow_sharing: boolean
     }>
-    const { title, description, language_id, storage_path, category, allow_download, allow_sharing } = body
+    const { title, description, language_id, storage_path, category, category_id, topic_ids, allow_download, allow_sharing } = body
 
     if (!title || (!language_id && !bypass)) {
       return Response.json(
@@ -124,6 +126,7 @@ export async function POST(request: Request) {
 
     if (storage_path) insertPayload.storage_path = storage_path
     if (category) insertPayload.category = category
+    if (category_id) insertPayload.category_id = category_id
     if (allow_download !== undefined) insertPayload.allow_download = allow_download
     if (allow_sharing !== undefined) insertPayload.allow_sharing = allow_sharing
 
@@ -135,6 +138,19 @@ export async function POST(request: Request) {
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 })
+    }
+
+    // Topic tags are optional and non-fatal: a failure here shouldn't roll
+    // back an otherwise-successful upload, since the recording itself is
+    // already committed.
+    if (topic_ids && topic_ids.length > 0 && data?.id) {
+      try {
+        await supabase
+          .from('recording_tags')
+          .insert(topic_ids.map((tag_id) => ({ recording_id: data.id, tag_id, tagged_by: uploadedBy })))
+      } catch {
+        // non-fatal
+      }
     }
 
     return Response.json({

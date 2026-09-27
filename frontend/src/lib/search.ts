@@ -5,6 +5,9 @@ type SearchOptions = {
   query?: string;
   languageId?: string;
   category?: Category | null;
+  categoryGroupId?: string | null;
+  categorySubtypeId?: string | null;
+  topics?: string[]; // topic *names*, matching ContentItem.topics
 };
 
 const CATEGORY_KEYWORDS: Record<Category, string[]> = {
@@ -58,8 +61,11 @@ export const searchContent = (items: ContentItem[], options: SearchOptions = {})
     .filter(item => {
       const languageMatches = !options.languageId || options.languageId === 'all' || item.languageId === options.languageId;
       const categoryMatches = !options.category || item.category === options.category;
+      const groupMatches = !options.categoryGroupId || item.categoryGroupId === options.categoryGroupId;
+      const subtypeMatches = !options.categorySubtypeId || item.categorySubtypeId === options.categorySubtypeId;
+      const topicMatches = !options.topics?.length || options.topics.some(t => item.topics?.includes(t));
 
-      if (!languageMatches || !categoryMatches) return false;
+      if (!languageMatches || !categoryMatches || !groupMatches || !subtypeMatches || !topicMatches) return false;
       if (!query) return true;
 
       const fields = searchableFieldsFor(item);

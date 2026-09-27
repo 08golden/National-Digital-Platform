@@ -169,6 +169,11 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
     Books: Book,
   }[item.category];
 
+  // Prefer the new taxonomy's mediaKind; fall back to a guess from the
+  // legacy flat category for rows uploaded before that column existed.
+  const effectiveMediaKind: 'audio' | 'video' | 'document' | 'dataset' =
+    item.mediaKind || (item.category === 'Audio' ? 'audio' : item.category === 'Video' ? 'video' : 'document');
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -197,7 +202,7 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
         {/* 70% Main Content Section */}
         <div id="main-content-section" className="md:w-[70%] h-full flex flex-col overflow-hidden bg-white/5 border-r border-white/10">
           <div className="flex-1 overflow-y-auto p-8 md:p-12 custom-scrollbar">
-            {item.category === 'Audio' ? (
+            {effectiveMediaKind === 'audio' ? (
               <div className="h-full flex flex-col items-center justify-center space-y-12">
                 <motion.div 
                   animate={isPlaying ? { scale: [1, 1.05, 1] } : {}}
@@ -337,12 +342,28 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
                   </div>
                 </div>
               </div>
+            ) : effectiveMediaKind === 'video' ? (
+              <div className="h-full flex flex-col items-center justify-center gap-8">
+                <video
+                  src={resolvedUrl}
+                  poster={item.thumbnail}
+                  controls
+                  className="w-full max-h-[60vh] rounded-2xl bg-black"
+                />
+                <div className="text-center">
+                  <h2 className="text-3xl font-display font-bold mb-2 tracking-tight">{item.title}</h2>
+                  <p className="text-white/40">{item.author || 'Cultural Heritage Video'}</p>
+                  {urlError && (
+                    <p className="mt-2 text-sm text-red-400">Couldn't load this media: {urlError}</p>
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="space-y-8 prose prose-invert max-w-none">
                 <header className="mb-12">
                   <div className="flex items-center gap-3 text-amber-500 font-bold uppercase text-xs tracking-widest mb-4">
                     <Icon size={16} />
-                    <span>{item.category}</span>
+                    <span>{item.categorySubtypeName || item.category}</span>
                   </div>
                   <h2 className="text-5xl font-display font-bold tracking-tight mb-6">{item.title}</h2>
                   <div className="flex flex-wrap gap-6 text-white/40 text-sm">

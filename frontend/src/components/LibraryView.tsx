@@ -4,23 +4,27 @@ import {
   FileText, Music, Video, Book, Globe2,
   ArrowLeft, Search, Play, Eye, Download, 
   MoreVertical, Clock, GitBranch, Archive, History,
-  UploadCloud, Star, User, ShieldCheck, ChevronRight
+  UploadCloud, Star, User, ShieldCheck, ChevronRight, SlidersHorizontal
 } from 'lucide-react';
 import { Category, ContentItem } from '../types';
-import { CATEGORIES, LANGUAGES } from '../constants';
+import { LANGUAGES } from '../constants';
 import { cn } from '../lib/utils';
 import { searchContent } from '../lib/search';
 import { ContentDetails } from './ContentDetails';
 import { useAuth } from '../contexts/AuthContext';
 import { getPublishedContentItems } from '../lib/api/recordings';
+import { getCategoryTree, getTopics, CategoryNode, Topic } from '../lib/api/categories';
 
 interface LibraryViewProps {
   languageId: string;
   initialSearchQuery?: string;
-  initialCategory?: Category | null;
-  onCategoryChange?: (category: Category | null) => void;
+  initialCategory?: string | null; // content-group id
+  onCategoryChange?: (categoryGroupId: string | null) => void;
   onClose: () => void;
 }
+
+const isAudioItem = (item: ContentItem) =>
+  item.mediaKind === 'audio' || (!item.mediaKind && item.category === 'Audio');
 
 const ICON_MAP = {
   Articles: FileText,
@@ -54,7 +58,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 }) => {
   const { appUser } = useAuth();
   const [browseLanguageId, setBrowseLanguageId] = useState(languageId);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(initialCategory);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(initialCategory);
+  const [selectedSubtypeId, setSelectedSubtypeId] = useState<string | null>(null);
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [libraryScope, setLibraryScope] = useState<LibraryScope>('all');
@@ -63,6 +70,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const [content, setContent] = useState<ContentItem[]>([]);
   const [contentLoading, setContentLoading] = useState(true);
   const [contentError, setContentError] = useState('');
+
+  const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
 
   const fetchContent = () => {
     setContentLoading(true);
@@ -75,28 +85,45 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
   useEffect(() => {
     fetchContent();
+    getCategoryTree().then(setCategoryTree).catch(() => {});
+    getTopics().then(setTopics).catch(() => {});
   }, []);
 
-  const updateSelectedCategory = (category: Category | null) => {
+  const updateSelectedGroup = (groupId: string | null) => {
     setLibraryScope('all');
-    setSelectedCategory(category);
-    onCategoryChange?.(category);
+    setSelectedGroupId(groupId);
+    setSelectedSubtypeId(null);
+    setSelectedTopics([]);
+    onCategoryChange?.(groupId);
+  };
+
+  const toggleSubtypeFilter = (subtypeId: string) => {
+    setLibraryScope('all');
+    setSelectedSubtypeId((current) => (current === subtypeId ? null : subtypeId));
+  };
+
+  const toggleTopicFilter = (topicName: string) => {
+    setLibraryScope('all');
+    setSelectedTopics((current) =>
+      current.includes(topicName) ? current.filter((t) => t !== topicName) : [...current, topicName]
+    );
   };
 
   const updateBrowseLanguage = (nextLanguageId: string) => {
     setLibraryScope('all');
     setBrowseLanguageId(nextLanguageId);
-    setSelectedCategory(null);
-    onCategoryChange?.(null);
+    updateSelectedGroup(null);
   };
 
   const searchedContent = useMemo(
     () => searchContent(content, {
       query: searchQuery,
       languageId: browseLanguageId,
-      category: selectedCategory,
+      categoryGroupId: selectedGroupId,
+      categorySubtypeId: selectedSubtypeId,
+      topics: selectedTopics,
     }),
-    [content, browseLanguageId, searchQuery, selectedCategory]
+    [content, browseLanguageId, searchQuery, selectedGroupId, selectedSubtypeId, selectedTopics]
   );
 
   const scopedContent = useMemo(
@@ -110,12 +137,12 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const lastViewed = [...scopedContent].reverse().slice(0, 3);
   const pushedContent = scopedContent.slice(0, Math.min(2, scopedContent.length));
   const filteredContent = libraryScope === 'pushed'
-    ? pushedContent.filter(item => !selectedCategory || item.category === selectedCategory)
+    ? pushedContent.filter(item => !selectedGroupId || item.categoryGroupId === selectedGroupId)
     : searchedContent;
   const audioQueue = filteredContent.some(item => item.id === selectedItem?.id)
-    ? filteredContent.filter(item => item.category === 'Audio')
-    : scopedContent.filter(item => item.category === 'Audio');
-  const selectedAudioIndex = selectedItem?.category === 'Audio'
+    ? filteredContent.filter(isAudioItem)
+    : scopedContent.filter(isAudioItem);
+  const selectedAudioIndex = selectedItem && isAudioItem(selectedItem)
     ? audioQueue.findIndex(item => item.id === selectedItem.id)
     : -1;
   const previousAudioItem = selectedAudioIndex > 0 ? audioQueue[selectedAudioIndex - 1] : null;
@@ -129,10 +156,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
       meta: `${scopedContent.length} managed`,
       icon: ShieldCheck,
       adminOnly: true,
-      active: libraryScope === 'all' && !selectedCategory && !searchQuery,
+      active: libraryScope === 'all' && !selectedGroupId && !searchQuery,
       onClick: () => {
         setLibraryScope('all');
-        updateSelectedCategory(null);
+        updateSelectedGroup(null);
         setSearchQuery('');
       },
     },
@@ -193,13 +220,13 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                   className="h-10 w-full rounded-md border border-white/10 bg-white/[0.04] pl-10 pr-4 text-sm transition-all placeholder:text-white/30 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
               </div>
-              {(browseLanguageId !== 'all' || selectedCategory || searchQuery || libraryScope !== 'all') && (
+              {(browseLanguageId !== 'all' || selectedGroupId || selectedTopics.length > 0 || searchQuery || libraryScope !== 'all') && (
                 <button
                   id="btn-reset-filters"
                   onClick={() => {
                     setLibraryScope('all');
                     setBrowseLanguageId('all');
-                    updateSelectedCategory(null);
+                    updateSelectedGroup(null);
                     setSearchQuery('');
                   }}
                   className="h-10 rounded-md border border-white/10 px-4 text-xs font-bold uppercase tracking-widest text-white/65 transition-all hover:bg-white/10 hover:text-white"
@@ -252,36 +279,59 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 </div>
                 <div className="p-2">
                   <button
-                    onClick={() => updateSelectedCategory(null)}
+                    onClick={() => updateSelectedGroup(null)}
                     className={cn(
                       "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                      !selectedCategory ? "bg-amber-500/10 text-amber-300" : "text-white/70 hover:bg-white/[0.06] hover:text-white"
+                      !selectedGroupId ? "bg-amber-500/10 text-amber-300" : "text-white/70 hover:bg-white/[0.06] hover:text-white"
                     )}
                   >
                     <Archive size={17} />
                     <span className="flex-1">All content</span>
                     <span className="text-xs text-white/35">{scopedContent.length}</span>
                   </button>
-                  {CATEGORIES.map((cat) => {
-                    const Icon = ICON_MAP[cat];
-                    const count = scopedContent.filter(i => i.category === cat).length;
+                  {categoryTree.map((group) => {
+                    const count = scopedContent.filter(i => i.categoryGroupId === group.id).length;
                     return (
                       <button
-                        key={cat}
-                        onClick={() => updateSelectedCategory(cat)}
+                        key={group.id}
+                        onClick={() => updateSelectedGroup(group.id)}
                         className={cn(
                           "flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors",
-                          selectedCategory === cat ? "bg-amber-500/10 text-amber-300" : "text-white/70 hover:bg-white/[0.06] hover:text-white"
+                          selectedGroupId === group.id ? "bg-amber-500/10 text-amber-300" : "text-white/70 hover:bg-white/[0.06] hover:text-white"
                         )}
                       >
-                        <Icon size={17} />
-                        <span className="flex-1">{cat}</span>
+                        <Archive size={17} />
+                        <span className="flex-1">{group.name}</span>
                         <span className="text-xs text-white/35">{count}</span>
                       </button>
                     );
                   })}
                 </div>
               </section>
+
+              {topics.length > 0 && (
+                <section className="rounded-md border border-white/10 bg-white/[0.03]">
+                  <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                    <h3 className="text-sm font-semibold text-white/85">Topics</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2 p-3">
+                    {topics.map((topic) => (
+                      <button
+                        key={topic.id}
+                        onClick={() => toggleTopicFilter(topic.name)}
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                          selectedTopics.includes(topic.name)
+                            ? "border-amber-500 bg-amber-500/10 text-amber-300"
+                            : "border-white/10 text-white/60 hover:border-white/30"
+                        )}
+                      >
+                        {topic.name}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               <section className="rounded-md border border-white/10 bg-white/[0.03]">
                 <div className="border-b border-white/10 px-4 py-3">
@@ -361,15 +411,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
               <div className="flex flex-col gap-4 rounded-md border border-white/10 bg-white/[0.03] p-4 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-white/40">
-                    <button onClick={() => updateSelectedCategory(null)} className="font-semibold text-white/75 hover:text-amber-300">
+                    <button onClick={() => updateSelectedGroup(null)} className="font-semibold text-white/75 hover:text-amber-300">
                       Digital Library
                     </button>
                     <ChevronRight size={14} />
                     <span className="font-semibold text-white/75">{LANGUAGE_LABELS[browseLanguageId] || browseLanguageId}</span>
-                    {selectedCategory && (
+                    {selectedGroupId && (
                       <>
                         <ChevronRight size={14} />
-                        <span className="font-semibold text-amber-300">{selectedCategory}</span>
+                        <span className="font-semibold text-amber-300">
+                          {categoryTree.find(g => g.id === selectedGroupId)?.name}
+                        </span>
                       </>
                     )}
                   </div>
@@ -378,26 +430,84 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                   </h3>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {CATEGORIES.map((cat) => {
-                    const Icon = ICON_MAP[cat];
-                    return (
-                      <button
-                        key={cat}
-                        onClick={() => updateSelectedCategory(selectedCategory === cat ? null : cat)}
-                        className={cn(
-                          "flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-colors",
-                          selectedCategory === cat
-                            ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
-                            : "border-white/10 bg-zinc-900/80 text-white/60 hover:bg-white/[0.06] hover:text-white"
-                        )}
-                      >
-                        <Icon size={15} />
-                        {cat}
-                      </button>
-                    );
-                  })}
+                  {categoryTree.map((group) => (
+                    <button
+                      key={group.id}
+                      onClick={() => updateSelectedGroup(selectedGroupId === group.id ? null : group.id)}
+                      className={cn(
+                        "flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-colors",
+                        selectedGroupId === group.id
+                          ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                          : "border-white/10 bg-zinc-900/80 text-white/60 hover:bg-white/[0.06] hover:text-white"
+                      )}
+                    >
+                      <Archive size={15} />
+                      {group.name}
+                    </button>
+                  ))}
+                  <button
+                    id="btn-toggle-filters"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={cn(
+                      "flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition-colors",
+                      showFilters || selectedTopics.length > 0
+                        ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                        : "border-white/10 bg-zinc-900/80 text-white/60 hover:bg-white/[0.06] hover:text-white"
+                    )}
+                  >
+                    <SlidersHorizontal size={15} />
+                    Filters
+                    {selectedTopics.length > 0 && (
+                      <span className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-black">
+                        {selectedTopics.length}
+                      </span>
+                    )}
+                  </button>
                 </div>
               </div>
+
+              {showFilters && (
+                <div className="flex flex-wrap items-center gap-4 rounded-md border border-white/10 bg-white/[0.03] p-4">
+                  {selectedGroupId && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-widest text-white/30">Type:</span>
+                      {(categoryTree.find(g => g.id === selectedGroupId)?.children || []).map((sub) => (
+                        <button
+                          key={sub.id}
+                          onClick={() => toggleSubtypeFilter(sub.id)}
+                          className={cn(
+                            "rounded-full border px-3 py-1 text-xs transition-colors",
+                            selectedSubtypeId === sub.id
+                              ? "border-amber-500 bg-amber-500/10 text-amber-300"
+                              : "border-white/10 text-white/60 hover:border-amber-500/40 hover:text-amber-300"
+                          )}
+                        >
+                          {sub.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {topics.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-widest text-white/30">Topic:</span>
+                      {topics.map((topic) => (
+                        <button
+                          key={topic.id}
+                          onClick={() => toggleTopicFilter(topic.name)}
+                          className={cn(
+                            "rounded-full border px-3 py-1 text-xs transition-colors",
+                            selectedTopics.includes(topic.name)
+                              ? "border-amber-500 bg-amber-500/10 text-amber-300"
+                              : "border-white/10 text-white/60 hover:border-amber-500/40 hover:text-amber-300"
+                          )}
+                        >
+                          {topic.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="overflow-hidden rounded-md border border-white/10 bg-white/[0.03]">
                 <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.025] px-4 py-3">
@@ -441,7 +551,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     </p>
                     {content.length > 0 && (
                       <button
-                        onClick={() => { setSearchQuery(''); setBrowseLanguageId('all'); updateSelectedCategory(null); }}
+                        onClick={() => { setSearchQuery(''); setBrowseLanguageId('all'); updateSelectedGroup(null); }}
                         className="mt-6 rounded-md bg-white px-4 py-2 text-sm font-bold text-black transition-colors hover:bg-amber-200"
                       >
                         Clear filters

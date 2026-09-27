@@ -2,6 +2,7 @@ const BASE_URL = import.meta.env.VITE_API_URL;
 import { supabase } from '../supabaseClient';
 import { ContentItem } from '../../types';
 import { LANGUAGES } from '../../constants';
+import { getCategoryTreeFlat, CategoryNode } from './categories';
 
 export async function getRecordings() {
   const res = await fetch(`${BASE_URL}/api/recordings`);
@@ -93,7 +94,13 @@ function resolveLanguageId(dbLanguageName?: string, fallbackUuid?: string): stri
   return fallbackUuid || 'all';
 }
 
-function mapRecordingToContentItem(row: any): ContentItem {
+function mapRecordingToContentItem(row: any, categoryById: Map<string, any>): ContentItem {
+  const subtype = row.category_id ? categoryById.get(row.category_id) : undefined;
+  const group = subtype?.parentId ? categoryById.get(subtype.parentId) : undefined;
+  const topics: string[] = (row.recording_tags || [])
+    .map((rt: any) => rt.tags?.name)
+    .filter(Boolean);
+
   return {
     id: row.id,
     title: row.title,
@@ -107,23 +114,37 @@ function mapRecordingToContentItem(row: any): ContentItem {
       allowDownload: row.allow_download !== false,
       allowSharing: row.allow_sharing !== false,
     },
+    categoryGroupId: group?.id,
+    categoryGroupName: group?.name,
+    categorySubtypeId: subtype?.id,
+    categorySubtypeName: subtype?.name,
+    mediaKind: subtype?.mediaKind || undefined,
+    topics,
   };
 }
 
 /**
  * Fetches every published recording directly via the Supabase client (RLS
- * allows anyone to read status='published' rows), joined with language and
- * uploader names, and maps them onto ContentItem for the Library/Search UI.
+ * allows anyone to read status='published' rows), joined with language,
+ * uploader, category and topic-tag names, and maps them onto ContentItem
+ * for the Library/Search UI. The category tree is fetched once and used to
+ * resolve each row's group/sub-type client-side rather than attempting a
+ * PostgREST self-join embed on categories.parent_id, which is awkward to
+ * express reliably.
  */
 export async function getPublishedContentItems(): Promise<ContentItem[]> {
-  const { data, error } = await supabase
-    .from('recordings')
-    .select('id, title, description, category, storage_path, created_at, language_id, allow_download, allow_sharing, languages(name), users(username, display_name)')
-    .eq('status', 'published')
-    .order('created_at', { ascending: false });
+  const [{ data, error }, categoryTree] = await Promise.all([
+    supabase
+      .from('recordings')
+      .select('id, title, description, category, category_id, storage_path, created_at, language_id, allow_download, allow_sharing, languages(name), users(username, display_name), recording_tags(tags(name))')
+      .eq('status', 'published')
+      .order('created_at', { ascending: false }),
+    getCategoryTreeFlat().catch(() => []),
+  ]);
 
   if (error) throw new Error(error.message);
-  return (data || []).map(mapRecordingToContentItem);
+  const categoryById = new Map<string, CategoryNode>(categoryTree.map((c) => [c.id, c] as [string, CategoryNode]));
+  return (data || []).map((row) => mapRecordingToContentItem(row, categoryById));
 }
 
 /**
