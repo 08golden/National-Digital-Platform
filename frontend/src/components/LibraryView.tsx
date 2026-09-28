@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  FileText, Music, Video, Book, Globe2,
+  FileText, Music, Video, Globe2,
   ArrowLeft, Search, Play, Eye, Download, 
   MoreVertical, Clock, GitBranch, Archive, History,
-  UploadCloud, Star, User, ShieldCheck, ChevronRight, SlidersHorizontal
+  UploadCloud, Star, User, ShieldCheck, ChevronRight, SlidersHorizontal, Database
 } from 'lucide-react';
 import { Category, ContentItem } from '../types';
 import { LANGUAGES } from '../constants';
@@ -26,11 +26,31 @@ interface LibraryViewProps {
 const isAudioItem = (item: ContentItem) =>
   item.mediaKind === 'audio' || (!item.mediaKind && item.category === 'Audio');
 
-const ICON_MAP = {
-  Articles: FileText,
-  Audio: Music,
-  Video: Video,
-  Books: Book,
+// Icons/colours/labels follow the item's real media kind and taxonomy type
+// (falling back to the legacy flat category only for pre-taxonomy rows), so
+// a document retagged as "Story Book" stops showing a music note.
+type DisplayKind = 'audio' | 'video' | 'document' | 'dataset';
+
+const displayKind = (item: ContentItem): DisplayKind =>
+  item.mediaKind || (item.category === 'Audio' ? 'audio' : item.category === 'Video' ? 'video' : 'document');
+
+const KIND_ICON = { audio: Music, video: Video, document: FileText, dataset: Database };
+
+const KIND_STYLE: Record<DisplayKind, string> = {
+  audio: 'border-red-400/20 bg-red-500/10 text-red-300',
+  video: 'border-green-400/20 bg-green-500/10 text-green-300',
+  document: 'border-blue-400/20 bg-blue-500/10 text-blue-300',
+  dataset: 'border-amber-400/20 bg-amber-500/10 text-amber-300',
+};
+
+const itemLabel = (item: ContentItem) => item.categorySubtypeName || item.category;
+
+const formatDate = (iso?: string) => {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? iso
+    : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
 const LANGUAGE_LABELS = Object.fromEntries(
@@ -366,7 +386,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                   <h3 className="px-1 text-xs font-bold uppercase tracking-widest text-white/35">Last viewed</h3>
                 <div className="space-y-2">
                   {lastViewed.map((item) => {
-                    const Icon = ICON_MAP[item.category];
+                    const Icon = KIND_ICON[displayKind(item)];
                     return (
                       <button
                         key={item.id}
@@ -376,7 +396,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                         <Icon size={15} className="mt-0.5 shrink-0 text-white/35" />
                         <span className="min-w-0">
                           <span className="block truncate text-sm text-white/75">{item.title}</span>
-                          <span className="text-xs text-white/30">{item.date || 'Recently viewed'}</span>
+                          <span className="text-xs text-white/30">{formatDate(item.date) || 'Recently viewed'}</span>
                         </span>
                       </button>
                     );
@@ -388,7 +408,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 <h3 className="px-1 text-xs font-bold uppercase tracking-widest text-white/35">Recently accessed items</h3>
                 <div className="space-y-2">
                   {recentlyAccessed.map((item) => {
-                    const Icon = ICON_MAP[item.category];
+                    const Icon = KIND_ICON[displayKind(item)];
                     return (
                       <button
                         key={item.id}
@@ -398,7 +418,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                         <Icon size={15} className="mt-0.5 shrink-0 text-white/35" />
                         <span className="min-w-0">
                           <span className="block truncate text-sm text-white/75">{item.title}</span>
-                          <span className="text-xs text-white/30">{item.category}</span>
+                          <span className="text-xs text-white/30">{itemLabel(item)}</span>
                         </span>
                       </button>
                     );
@@ -561,7 +581,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 ) : (
                   <div id="content-items-container" className="divide-y divide-white/10">
                     {filteredContent.map((item, idx) => {
-                      const Icon = ICON_MAP[item.category];
+                      const Icon = KIND_ICON[displayKind(item)];
                       return (
                         <motion.div
                           key={item.id}
@@ -577,10 +597,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                             <div className="flex min-w-0 items-start gap-3">
                               <div className={cn(
                                 "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border",
-                                item.category === 'Audio' ? "border-red-400/20 bg-red-500/10 text-red-300" :
-                                item.category === 'Articles' ? "border-blue-400/20 bg-blue-500/10 text-blue-300" :
-                                item.category === 'Video' ? "border-green-400/20 bg-green-500/10 text-green-300" :
-                                "border-amber-400/20 bg-amber-500/10 text-amber-300"
+                                KIND_STYLE[displayKind(item)]
                               )}>
                                 <Icon size={18} />
                               </div>
@@ -590,7 +607,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                     {item.title}
                                   </h4>
                                   <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] font-semibold text-white/45">
-                                    {item.category}
+                                    {itemLabel(item)}
                                   </span>
                                 </div>
                                 <p className="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-white/45">
@@ -602,7 +619,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                                     {item.author || 'Repository contributor'}
                                   </span>
                                   <span>{LANGUAGE_LABELS[item.languageId] || item.languageId}</span>
-                                  <span>{item.date || 'Draft date'}</span>
+                                  <span>{formatDate(item.date) || 'Draft date'}</span>
                                 </div>
                               </div>
                             </div>
@@ -612,13 +629,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                             <button
                               onClick={() => setSelectedItem(item)}
                               className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-                              title={item.category === 'Audio' ? 'Play' : 'View'}
+                              title={displayKind(item) === 'audio' || displayKind(item) === 'video' ? 'Play' : 'View'}
                             >
-                              {item.category === 'Audio' ? <Play size={16} /> : <Eye size={16} />}
+                              {displayKind(item) === 'audio' || displayKind(item) === 'video' ? <Play size={16} /> : <Eye size={16} />}
                             </button>
                             <button
+                              onClick={() => setSelectedItem(item)}
                               className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-                              title="Download"
+                              title="Open to download"
                             >
                               <Download size={16} />
                             </button>

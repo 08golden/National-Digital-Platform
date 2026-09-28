@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Upload, Loader2, FileCheck, ClipboardList, User, Building2, Languages, Tag } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 import { getLanguages } from '../lib/api/languages';
 import { getCategoryTree, getTopics, CategoryNode, Topic, MediaKind } from '../lib/api/categories';
 import { cn } from '../lib/utils';
@@ -45,12 +46,18 @@ const MEDIA_KIND_RULES: Record<MediaKind, { accept: string; test: (f: File) => b
 };
 
 export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
+  // Who is contributing is already known from signup/profile — don't ask
+  // for it again on every upload. Affiliation isn't collected at signup, so
+  // it's asked once here and then remembered on the profile.
+  const { appUser, refreshAppUser } = useAuth();
+  const contributorName = appUser?.display_name || appUser?.username || 'you';
+  const savedAffiliation: string = appUser?.metadata?.affiliation || '';
+
   // "useState" is how we keep track of things that change in our app.
   // We keep track of the current step and what they selected.
   const [step, setStep] = useState<'details' | 'upload' | 'scanning' | 'result'>('details');
   const [details, setDetails] = useState({
-    name: '',
-    affiliation: '',
+    affiliation: savedAffiliation,
     languageId: '',
     contributionPurpose: '',
   });
@@ -89,7 +96,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   };
 
   const isDetailsComplete = [
-    details.name,
     details.affiliation,
     details.languageId,
     details.contributionPurpose,
@@ -168,6 +174,19 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
       }
 
       setUploadProgress(100);
+      // Remember affiliation so the next upload doesn't ask again (best
+      // effort — never fail an otherwise-successful upload over this).
+      if (appUser && details.affiliation.trim() && details.affiliation.trim() !== savedAffiliation) {
+        try {
+          await supabase
+            .from('users')
+            .update({ metadata: { ...(appUser.metadata || {}), affiliation: details.affiliation.trim() } })
+            .eq('id', appUser.id);
+          await refreshAppUser();
+        } catch {
+          // ignore
+        }
+      }
       setStep('result');
     } catch (e) {
       console.error('Upload error', e);
@@ -224,19 +243,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                 </div>
 
                 <div className="space-y-4">
-                  <label className="block">
-                    <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/35">
-                      <User size={14} />
-                      Name
-                    </span>
-                    <input
-                      type="text"
-                      value={details.name}
-                      onChange={(e) => updateDetailField('name', e.target.value)}
-                      placeholder="e.g. Dr. Helena Amutenya"
-                      className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
-                    />
-                  </label>
+                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/60">
+                    <User size={14} className="text-white/35" />
+                    Contributing as <span className="font-semibold text-white">{contributorName}</span>
+                  </div>
 
                   <label className="block">
                     <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/35">
@@ -248,6 +258,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                       value={details.affiliation}
                       onChange={(e) => updateDetailField('affiliation', e.target.value)}
                       placeholder="e.g. University of Namibia"
+                      title="Saved to your profile — you only need to enter this once"
                       className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
                     />
                   </label>
@@ -275,7 +286,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                   <label className="block">
                     <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/35">
                       <ClipboardList size={14} />
-                      Contribution purpose
+                      About this contribution
                     </span>
                     <textarea
                       value={details.contributionPurpose}
@@ -319,7 +330,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                 <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                   <div className="text-[10px] font-bold uppercase tracking-widest text-amber-400">Contribution Summary</div>
                   <div className="mt-2 grid gap-2 text-sm text-white/65 sm:grid-cols-2">
-                    <span className="truncate">{details.name}</span>
+                    <span className="truncate">{contributorName}</span>
                     <span className="truncate">{details.affiliation}</span>
                     <span className="truncate">{languages.find(l => l.id === details.languageId)?.name || details.languageId}</span>
                   </div>
