@@ -21,6 +21,9 @@ interface ContentDetailsProps {
   hasPrevious?: boolean;
   nextItem?: ContentItem | null;
   previousItem?: ContentItem | null;
+  /** Whole library list, used to compute real "Recommended" items instead of placeholders. */
+  allItems?: ContentItem[];
+  onSelectItem?: (item: ContentItem) => void;
 }
 
 export const ContentDetails: React.FC<ContentDetailsProps> = ({
@@ -32,6 +35,8 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
   hasPrevious = false,
   nextItem = null,
   previousItem = null,
+  allItems = [],
+  onSelectItem,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -173,6 +178,17 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
   // legacy flat category for rows uploaded before that column existed.
   const effectiveMediaKind: 'audio' | 'video' | 'document' | 'dataset' =
     item.mediaKind || (item.category === 'Audio' ? 'audio' : item.category === 'Video' ? 'video' : 'document');
+
+  // Real "Recommended" items: prefer the same content group, fall back to
+  // the same language, always excluding the item itself.
+  const related = (() => {
+    const others = allItems.filter((i) => i.id !== item.id);
+    const sameGroup = item.categoryGroupId
+      ? others.filter((i) => i.categoryGroupId === item.categoryGroupId)
+      : [];
+    const pool = sameGroup.length > 0 ? sameGroup : others.filter((i) => i.languageId === item.languageId);
+    return pool.slice(0, 3);
+  })();
 
   return (
     <motion.div
@@ -373,13 +389,13 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar size={16} />
-                      {item.date || "March 2024"}
+                      {item.date ? new Date(item.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long' }) : "Date unknown"}
                     </div>
                   </div>
                 </header>
                 
                 <div className="text-white/80 leading-relaxed text-lg font-serif">
-                  {item.transcript || "This document content is being digitized and will be available as a full transcript shortly. This article explores the cultural significance of Namibian linguistic traditions and their preservation in the modern digital era. Language is not just a tool for communication; it is a repository of history, values, and community identity."}
+                  {item.transcript || "No transcript or preview is available for this item yet."}
                 </div>
               </div>
             )}
@@ -396,19 +412,21 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
                   <Clock size={20} />
                 </div>
                 <div>
-                  <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Access Level</div>
-                  <div className="text-sm font-semibold">Scholar / Researcher</div>
+                  <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Content Group</div>
+                  <div className="text-sm font-semibold">{item.categoryGroupName || 'Uncategorized'}</div>
                 </div>
               </div>
-              <div className="glass p-5 rounded-2xl flex items-center gap-4">
-                <div className="p-3 bg-white/5 rounded-xl text-amber-500">
-                  <Calendar size={20} />
+              {item.topics && item.topics.length > 0 && (
+                <div className="glass p-5 rounded-2xl flex items-center gap-4">
+                  <div className="p-3 bg-white/5 rounded-xl text-amber-500">
+                    <Calendar size={20} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Topics</div>
+                    <div className="text-sm font-semibold">{item.topics.join(', ')}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Added Region</div>
-                  <div className="text-sm font-semibold">Zambezi Region, Namibia</div>
-                </div>
-              </div>
+              )}
             </div>
           </section>
 
@@ -475,23 +493,32 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
             </div>
           </section>
 
-          <section className="flex-1 space-y-6">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-white/30 px-1">Recommended</h3>
-            <div className="space-y-3">
-              {[1, 2].map((i) => (
-                <div key={i} className="glass p-4 rounded-2xl flex items-center gap-4 hover:bg-white/10 transition-all cursor-pointer group">
-                  <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center text-white/40 group-hover:text-white transition-colors">
-                    <Icon size={20} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">Related {item.category} {i}</div>
-                    <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">Oshiherero</div>
-                  </div>
-                  <ChevronRight size={16} className="text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
-                </div>
-              ))}
-            </div>
-          </section>
+          {related.length > 0 && (
+            <section className="flex-1 space-y-6">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-white/30 px-1">Recommended</h3>
+              <div className="space-y-3">
+                {related.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => onSelectItem?.(r)}
+                    disabled={!onSelectItem}
+                    className="w-full glass p-4 rounded-2xl flex items-center gap-4 hover:bg-white/10 transition-all cursor-pointer group text-left disabled:cursor-default"
+                  >
+                    <div className="w-12 h-12 bg-white/5 rounded-lg flex items-center justify-center text-white/40 group-hover:text-white transition-colors">
+                      <Icon size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{r.title}</div>
+                      <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">
+                        {r.categorySubtypeName || r.category}
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className="text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* User Meta Card */}
           <div className="mt-auto pt-6 border-t border-white/5 flex items-center gap-4">
@@ -500,7 +527,7 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
             </div>
             <div>
               <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Repository Author</div>
-              <div className="text-sm font-semibold">T. Kambonde</div>
+              <div className="text-sm font-semibold">{item.author || 'Unknown contributor'}</div>
             </div>
           </div>
         </div>

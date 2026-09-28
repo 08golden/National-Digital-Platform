@@ -1,22 +1,43 @@
 /**
  * Share Requests API
  *
- * Currently backed by in-memory mock state.
- * To connect to Supabase, replace each function body with the corresponding
- * Supabase query (see backend integration docs for the expected table schema).
+ * Backed by the real public.share_requests table (see migration
+ * 20260928000001_share_requests_table.sql). RLS does the access control:
+ * a non-admin only ever sees their own requests, an admin sees everything —
+ * so getShareRequests() is correct for both ShareRequestsContext's
+ * "does the current user already have a request for this item" check and
+ * the admin-only ShareRequestsTab, with no special-casing needed here.
+ *
+ * Field names on ShareRequest (types.ts) are camelCase; the table is
+ * snake_case — mapped explicitly below rather than relying on Supabase's
+ * column aliasing so this stays readable.
  */
-
 import { ShareRequest } from '../../types';
+import { supabase } from '../supabaseClient';
 
-// Module-level store — survives re-renders, reset on page refresh.
-// Replace with Supabase table queries when the backend table is ready.
-let _store: ShareRequest[] = [];
+function mapRow(row: any): ShareRequest {
+  return {
+    id: row.id,
+    contentId: row.content_id,
+    contentTitle: row.content_title,
+    requestedBy: row.requested_by,
+    requestedByName: row.requested_by_name,
+    requestedAt: row.requested_at,
+    reason: row.reason,
+    status: row.status,
+    shareToken: row.share_token || undefined,
+    reviewedBy: row.reviewed_by || undefined,
+    reviewedAt: row.reviewed_at || undefined,
+  };
+}
 
 export async function getShareRequests(): Promise<ShareRequest[]> {
-  // TODO (backend): return supabase.from('share_requests').select('*').order('requested_at', { ascending: false })
-  return [..._store].sort(
-    (a, b) => new Date(b.requestedAt).getTime() - new Date(a.requestedAt).getTime()
-  );
+  const { data, error } = await supabase
+    .from('share_requests')
+    .select('*')
+    .order('requested_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapRow);
 }
 
 export async function createShareRequest(
@@ -26,44 +47,49 @@ export async function createShareRequest(
   requestedByName: string,
   reason: string
 ): Promise<ShareRequest> {
-  // TODO (backend): insert into share_requests
-  const request: ShareRequest = {
-    id: crypto.randomUUID(),
-    contentId,
-    contentTitle,
-    requestedBy,
-    requestedByName,
-    requestedAt: new Date().toISOString(),
-    reason,
-    status: 'pending',
-  };
-  _store.push(request);
-  return request;
+  const { data, error } = await supabase
+    .from('share_requests')
+    .insert({
+      content_id: contentId,
+      content_title: contentTitle,
+      requested_by: requestedBy,
+      requested_by_name: requestedByName,
+      reason,
+      status: 'pending',
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return mapRow(data);
 }
 
 export async function approveShareRequest(id: string, reviewedBy: string): Promise<ShareRequest> {
-  // TODO (backend): update share_requests set status='approved', share_token=gen_token, reviewed_by, reviewed_at
-  const idx = _store.findIndex(r => r.id === id);
-  if (idx === -1) throw new Error(`Share request ${id} not found`);
-  _store[idx] = {
-    ..._store[idx],
-    status: 'approved',
-    shareToken: crypto.randomUUID(),
-    reviewedBy,
-    reviewedAt: new Date().toISOString(),
-  };
-  return _store[idx];
+  const { data, error } = await supabase
+    .from('share_requests')
+    .update({
+      status: 'approved',
+      share_token: crypto.randomUUID(),
+      reviewed_by: reviewedBy,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return mapRow(data);
 }
 
 export async function rejectShareRequest(id: string, reviewedBy: string): Promise<ShareRequest> {
-  // TODO (backend): update share_requests set status='rejected', reviewed_by, reviewed_at
-  const idx = _store.findIndex(r => r.id === id);
-  if (idx === -1) throw new Error(`Share request ${id} not found`);
-  _store[idx] = {
-    ..._store[idx],
-    status: 'rejected',
-    reviewedBy,
-    reviewedAt: new Date().toISOString(),
-  };
-  return _store[idx];
+  const { data, error } = await supabase
+    .from('share_requests')
+    .update({
+      status: 'rejected',
+      reviewed_by: reviewedBy,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return mapRow(data);
 }

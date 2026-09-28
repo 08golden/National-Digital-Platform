@@ -674,6 +674,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             onNext={() => {
               if (nextAudioItem) setSelectedItem(nextAudioItem);
             }}
+            allItems={content}
+            onSelectItem={setSelectedItem}
           />
         )}
       </AnimatePresence>
