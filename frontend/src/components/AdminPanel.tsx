@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { AppUser } from '../types';
-import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload, Share2, ClipboardList, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload, Share2, ClipboardList, AlertTriangle, RefreshCw, Tags } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabaseClient';
 import { ModerationTab } from './ModerationTab';
 import { UploadsTab } from './UploadsTab';
+import { TaxonomyTab } from './TaxonomyTab';
 import { ShareRequestsTab } from './ShareRequestsTab';
 import { useShareRequests } from '../contexts/ShareRequestsContext';
 import {
@@ -29,7 +30,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [usersError, setUsersError] = useState('');
-  const [activeTab, setActiveTab] = useState<'users' | 'applications' | 'moderation' | 'uploads' | 'share-requests'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'applications' | 'moderation' | 'uploads' | 'taxonomy' | 'share-requests'>('users');
   const { requests: shareRequests, pendingCount, approveRequest, rejectRequest } = useShareRequests();
 
   const [applications, setApplications] = useState<ContributorApplicant[]>([]);
@@ -220,7 +221,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
         </header>
 
         <div className="flex gap-2 px-8 pt-6 border-b border-white/5 overflow-x-auto">
-          {(['users', 'applications', 'moderation', 'uploads', 'share-requests'] as const).map(tab => (
+          {(['users', 'applications', 'moderation', 'uploads', 'taxonomy', 'share-requests'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -265,6 +266,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                 </>
               )}
               {tab === 'uploads' && <><Upload size={16} className="inline mr-2" /> Uploads</>}
+              {tab === 'taxonomy' && <><Tags size={16} className="inline mr-2" /> Taxonomy</>}
               {tab === 'share-requests' && (
                 <>
                   <Share2 size={16} className="inline mr-2" />
@@ -470,6 +472,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
               archivingId={recordingActionId}
             />
           )}
+
+          {activeTab === 'taxonomy' && <TaxonomyTab />}
 
           {activeTab === 'share-requests' && (
             <ShareRequestsTab

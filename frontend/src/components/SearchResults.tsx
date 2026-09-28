@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { FileText, Music, Video, Book, X, Search as SearchIcon, Globe } from 'lucide-react';
-import { Category, ContentItem } from '../types';
-import { CATEGORIES, LANGUAGES } from '../constants';
+import { X, Search as SearchIcon, Globe, Archive } from 'lucide-react';
+import { ContentItem } from '../types';
+import { LANGUAGES } from '../constants';
 import { cn } from '../lib/utils';
 import { searchContent } from '../lib/search';
 import { getPublishedContentItems } from '../lib/api/recordings';
+import { getCategoryTree, CategoryNode } from '../lib/api/categories';
 
 interface SearchResultsProps {
   query: string;
@@ -13,16 +14,10 @@ interface SearchResultsProps {
   onClose: () => void;
 }
 
-const ICON_MAP = {
-  Articles: FileText,
-  Audio: Music,
-  Video: Video,
-  Books: Book,
-};
-
 export const SearchResults: React.FC<SearchResultsProps> = ({ query, languageId, onClose }) => {
-  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [content, setContent] = useState<ContentItem[]>([]);
+  const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -31,15 +26,16 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ query, languageId,
       .then(setContent)
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load results.'))
       .finally(() => setLoading(false));
+    getCategoryTree().then(setCategoryTree).catch(() => {});
   }, []);
 
   const filteredResults = useMemo(() => {
     return searchContent(content, {
       query,
       languageId,
-      category: activeCategory,
+      categoryGroupId: selectedGroupId,
     });
-  }, [content, query, languageId, activeCategory]);
+  }, [content, query, languageId, selectedGroupId]);
 
   return (
     <motion.div
@@ -63,29 +59,29 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ query, languageId,
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
           <button
-            onClick={() => setActiveCategory(null)}
+            onClick={() => setSelectedGroupId(null)}
             className={cn(
               "px-4 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap",
-              activeCategory === null 
+              selectedGroupId === null 
                 ? "bg-white text-black" 
                 : "bg-white/5 text-white/60 hover:bg-white/10"
             )}
           >
             All
           </button>
-          {CATEGORIES.map(cat => (
+          {categoryTree.map(group => (
             <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
+              key={group.id}
+              onClick={() => setSelectedGroupId(group.id)}
               className={cn(
                 "px-4 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5",
-                activeCategory === cat 
+                selectedGroupId === group.id 
                   ? "bg-amber-500 text-black" 
                   : "bg-white/5 text-white/60 hover:bg-white/10"
               )}
             >
-              {React.createElement(ICON_MAP[cat], { size: 12 })}
-              {cat}
+              <Archive size={12} />
+              {group.name}
             </button>
           ))}
         </div>
@@ -111,7 +107,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ query, languageId,
               >
                 <div className="flex items-center gap-2 text-[10px] text-white/40 mb-1">
                   <Globe size={10} />
-                  <span>repository.na › {item.languageId} › {item.category.toLowerCase()}</span>
+                  <span>repository.na › {item.languageId} › {(item.categorySubtypeName || item.category).toLowerCase()}</span>
                 </div>
                 <h3 className="text-xl font-display font-semibold text-amber-400 group-hover:underline mb-1">
                   {item.title}
@@ -121,11 +117,14 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ query, languageId,
                 </p>
                 <div className="flex items-center gap-3 mt-2">
                   <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest px-2 py-0.5 border border-white/10 rounded">
-                    {item.category}
+                    {item.categorySubtypeName || item.category}
                   </span>
                   <span className="text-[10px] font-medium text-amber-500/60">
                     {lang?.name} Culture
                   </span>
+                  {item.topics?.map((topic) => (
+                    <span key={topic} className="text-[10px] font-medium text-white/30">#{topic}</span>
+                  ))}
                 </div>
               </motion.div>
             );
@@ -134,7 +133,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({ query, languageId,
           <div className="py-12 text-center">
             <p className="text-white/40 italic">No results found for your search.</p>
             <button 
-              onClick={() => setActiveCategory(null)}
+              onClick={() => setSelectedGroupId(null)}
               className="mt-4 text-amber-500 text-sm hover:underline"
             >
               Clear filters and try again
