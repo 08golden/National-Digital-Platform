@@ -40,6 +40,24 @@ export async function getShareRequests(): Promise<ShareRequest[]> {
   return (data || []).map(mapRow);
 }
 
+/**
+ * Looks up an approved share request by its token — used by the /share/:token
+ * link flow. RLS still applies (share_requests_select_own_or_admin), so this
+ * only ever succeeds for the original requester (or an admin) viewing their
+ * own approved grant, not an arbitrary third party who receives the link —
+ * see the note in App.tsx on why that's the current scope.
+ */
+export async function getShareRequestByToken(token: string): Promise<ShareRequest | null> {
+  const { data, error } = await supabase
+    .from('share_requests')
+    .select('*')
+    .eq('share_token', token)
+    .eq('status', 'approved')
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? mapRow(data) : null;
+}
+
 export async function createShareRequest(
   contentId: string,
   contentTitle: string,

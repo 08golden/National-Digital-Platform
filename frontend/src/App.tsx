@@ -13,8 +13,11 @@ import { UserMenu } from './components/UserMenu';
 import { UserSettings } from './components/UserSettings';
 import { LANGUAGES } from './constants';
 import { useAuth } from './contexts/AuthContext';
-import { AppUser, Category } from './types';
+import { AppUser, Category, ContentItem } from './types';
 import { getContributorApplications } from './lib/api/contributorApplications';
+import { getShareRequestByToken } from './lib/api/shareRequests';
+import { getContentItemById } from './lib/api/recordings';
+import { ContentDetails } from './components/ContentDetails';
 
 export default function App() {
   const { appUser, signOut, loading } = useAuth();
@@ -27,6 +30,54 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const [pendingApplications, setPendingApplications] = useState(0);
+
+  // /share/:token — a personal access grant, not a public link (RLS only
+  // lets the original requester or an admin resolve the token; someone
+  // else receiving the link would see "invalid or expired" below, not the
+  // content). See getShareRequestByToken for the full reasoning.
+  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [sharedItem, setSharedItem] = useState<ContentItem | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState('');
+
+  useEffect(() => {
+    const match = window.location.pathname.match(/^\/share\/([a-f0-9-]{36})\/?$/i);
+    if (match) setShareToken(match[1]);
+  }, []);
+
+  useEffect(() => {
+    if (!shareToken || !appUser) return;
+    setShareLoading(true);
+    setShareError('');
+    (async () => {
+      try {
+        const request = await getShareRequestByToken(shareToken);
+        if (!request || request.requestedBy !== appUser.id) {
+          setShareError("This share link is invalid, expired, or wasn't issued to your account.");
+          return;
+        }
+        const item = await getContentItemById(request.contentId);
+        if (!item) {
+          setShareError('This item is no longer available.');
+          return;
+        }
+        // The whole point of an approved share grant is bypassing the
+        // item's own restriction for this one person.
+        setSharedItem({ ...item, dataUseConsent: { allowDownload: true, allowSharing: true } });
+      } catch (e) {
+        setShareError(e instanceof Error ? e.message : 'Failed to load shared content.');
+      } finally {
+        setShareLoading(false);
+      }
+    })();
+  }, [shareToken, appUser]);
+
+  const closeSharedItem = () => {
+    setShareToken(null);
+    setSharedItem(null);
+    setShareError('');
+    window.history.replaceState({}, '', '/');
+  };
 
   useEffect(() => {
     setIsLoaded(true);
@@ -79,6 +130,32 @@ export default function App() {
         <p>{message}</p>
       </div>
     );
+  }
+
+  if (shareToken) {
+    if (shareLoading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-amber-500" />
+        </div>
+      );
+    }
+    if (shareError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-zinc-950 text-white px-6 text-center">
+          <p>{shareError}</p>
+          <button
+            onClick={closeSharedItem}
+            className="rounded-xl bg-white px-5 py-2.5 text-sm font-bold text-black"
+          >
+            Go to the Digital Platform
+          </button>
+        </div>
+      );
+    }
+    if (sharedItem) {
+      return <ContentDetails item={sharedItem} onClose={closeSharedItem} />;
+    }
   }
 
   return (

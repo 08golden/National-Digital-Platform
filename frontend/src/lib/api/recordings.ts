@@ -148,6 +148,30 @@ export async function getPublishedContentItems(): Promise<ContentItem[]> {
 }
 
 /**
+ * Fetches a single recording and maps it onto ContentItem — used by the
+ * share-link flow (App.tsx) to open one specific item directly, outside
+ * normal Library browsing. Same RLS as getPublishedContentItems (published,
+ * or owner/admin) applies; a share grant only ever points at something
+ * already published anyway, since "Request Share Access" only appears on
+ * items already visible in the Library.
+ */
+export async function getContentItemById(id: string): Promise<ContentItem | null> {
+  const [{ data, error }, categoryTree] = await Promise.all([
+    supabase
+      .from('recordings')
+      .select('id, title, description, category, category_id, storage_path, created_at, language_id, allow_download, allow_sharing, languages(name), users(username, display_name), recording_tags(tags(name))')
+      .eq('id', id)
+      .maybeSingle(),
+    getCategoryTreeFlat().catch(() => []),
+  ]);
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const categoryById = new Map<string, CategoryNode>(categoryTree.map((c) => [c.id, c] as [string, CategoryNode]));
+  return mapRecordingToContentItem(data, categoryById);
+}
+
+/**
  * The 'recordings' storage bucket is private, so playback/download needs a
  * short-lived signed URL rather than a public one. Resolved lazily (e.g.
  * when a ContentDetails view opens) rather than for every item in a grid.

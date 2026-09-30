@@ -535,7 +535,7 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
 
       <AnimatePresence>
         {showShareModal && (
-          <ShareRequestModal item={item} onClose={() => setShowShareModal(false)} />
+          <ShareRequestModal item={item} existingRequest={existingShareRequest} onClose={() => setShowShareModal(false)} />
         )}
       </AnimatePresence>
     </motion.div>
