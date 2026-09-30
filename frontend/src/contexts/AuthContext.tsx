@@ -69,12 +69,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     setAppUser(data as AppUser);
 
-    // Someone who signed up asking to be a contributor may not have had an
-    // active session yet at signUp time (email confirmation pending), so
-    // the contributor application couldn't be submitted then. Their intent
-    // survives in auth metadata regardless of confirmation status, so once
-    // they do have a session (this runs on every successful login), submit
-    // it now if it hasn't already gone in.
+    // Someone who signed up (a) as a contributor, and/or (b) with a name,
+    // may not have had an active session yet at signUp time (email
+    // confirmation pending), so those writes couldn't happen then. Both
+    // survive in auth metadata regardless of confirmation status, so once
+    // there is a session (this runs on every successful login), catch up
+    // on whichever of the two is still missing.
     const authUser = (await supabase.auth.getUser()).data.user;
     const desiredRole = authUser?.user_metadata?.desired_role;
     const contributionDetails = authUser?.user_metadata?.contribution_details;
@@ -84,6 +84,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .then(() => fetchAppUser(userId))
         .catch(() => {
           // Non-fatal: they can still apply manually from Settings.
+        });
+    }
+
+    const pendingName = authUser?.user_metadata?.full_name;
+    const pendingIntent = authUser?.user_metadata?.intent;
+    const row = data as AppUser;
+    const profileUpdates: any = {};
+    if (pendingName && !row.display_name) profileUpdates.display_name = pendingName;
+    if (pendingIntent && !row.metadata?.intent) profileUpdates.metadata = { ...(row.metadata || {}), intent: pendingIntent };
+    if (Object.keys(profileUpdates).length > 0) {
+      Promise.resolve(supabase.from('users').update(profileUpdates).eq('id', userId))
+        .then(() => setAppUser({ ...row, ...profileUpdates }))
+        .catch(() => {
+          // Non-fatal: worst case the name stays blank until they set it
+          // manually — the account itself still works fine.
         });
     }
 
@@ -103,6 +118,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       password,
       options: {
         data: {
+          full_name: name || null,
+          intent: intent || null,
           desired_role: desiredRole || 'viewer',
           contribution_details: contributionDetails || null,
         },
@@ -127,6 +144,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       await fetchAppUser(user.id);
     }
+    // If there's no session yet (email confirmation pending), name/intent
+    // still made it into auth metadata above and get picked up by the
+    // same catch-up logic in fetchAppUser that already handles the
+    // contributor-application case, on first real login.
   };
 
   const signIn = async (email: string, password: string) => {

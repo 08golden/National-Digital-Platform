@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, ClipboardList, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { X, ClipboardList, CheckCircle2, XCircle, Clock, Pencil, Check } from 'lucide-react';
 import { AppUser } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { submitContributorApplication } from '../lib/api/contributorApplications';
+import { supabase } from '../lib/supabaseClient';
 import { cn } from '../lib/utils';
 
 interface UserSettingsProps {
@@ -23,6 +24,28 @@ export const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose }) => 
   const [motivation, setMotivation] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Display name isn't always set at signup (e.g. accounts created before
+  // that was fixed, or where email confirmation delayed the write) — let
+  // people fix it themselves instead of it being stuck at "N/A" forever.
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(user.display_name || '');
+  const [savingName, setSavingName] = useState(false);
+
+  const saveName = async () => {
+    const trimmed = nameDraft.trim();
+    if (!trimmed || savingName) return;
+    setSavingName(true);
+    try {
+      await supabase.from('users').update({ display_name: trimmed }).eq('id', user.id);
+      await refreshAppUser();
+      setEditingName(false);
+    } catch {
+      // leave the field open so they can retry
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const application = user.metadata?.contributor_application as ContributorApplicationMeta;
 
@@ -71,7 +94,30 @@ export const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose }) => 
             <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-amber-500 mb-3">Profile</h3>
             <div className="space-y-3 text-sm text-white/60">
               <p><span className="font-semibold text-white">Username:</span> {user.username}</p>
-              <p><span className="font-semibold text-white">Display name:</span> {user.display_name || 'N/A'}</p>
+              <p className="flex items-center gap-2">
+                <span className="font-semibold text-white">Display name:</span>
+                {editingName ? (
+                  <span className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={nameDraft}
+                      onChange={(e) => setNameDraft(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                      className="h-8 rounded-lg border border-white/10 bg-white/5 px-2 text-sm text-white outline-none focus:border-amber-500/50"
+                    />
+                    <button onClick={saveName} disabled={savingName || !nameDraft.trim()} className="rounded-lg bg-green-500/20 p-1.5 text-green-400 hover:bg-green-500/30 disabled:opacity-50">
+                      <Check size={12} />
+                    </button>
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    {user.display_name || 'N/A'}
+                    <button onClick={() => { setNameDraft(user.display_name || ''); setEditingName(true); }} className="text-white/30 hover:text-white" title="Edit">
+                      <Pencil size={12} />
+                    </button>
+                  </span>
+                )}
+              </p>
               <p><span className="font-semibold text-white">Email:</span> {user.email}</p>
             </div>
           </div>
