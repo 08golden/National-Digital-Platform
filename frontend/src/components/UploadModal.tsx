@@ -60,6 +60,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
     affiliation: savedAffiliation,
     languageId: '',
     contributionPurpose: '',
+    title: '',
   });
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [languagesError, setLanguagesError] = useState('');
@@ -111,6 +112,18 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   // Handle file selection
   const [fileError, setFileError] = useState('');
 
+  // Turns "Land_and_landscape_in_Otjiherero_oral_culture.pdf" into a
+  // readable starting point ("Land and landscape in Otjiherero oral
+  // culture") instead of the item's title being the raw filename forever —
+  // this is just a suggestion though; the Title field below is editable
+  // and that's what actually gets saved, not this guess.
+  const suggestTitleFromFilename = (filename: string) =>
+    filename
+      .replace(/\.[^/.]+$/, '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
   const handleFileChange = (file?: File) => {
     setFileError('');
     if (!file) return;
@@ -123,6 +136,11 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
       }
     }
     setSelectedFile(file);
+    // Only suggest if they haven't typed a title yet — never clobber
+    // something they already wrote.
+    if (!details.title.trim()) {
+      updateDetailField('title', suggestTitleFromFilename(file.name));
+    }
   };
 
   // Upload file to Supabase Storage and create a recording via backend
@@ -148,7 +166,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
       if (!token) throw new Error('Your session has expired. Please sign in again.');
 
       const payload = {
-        title: selectedFile.name,
+        title: details.title.trim() || selectedFile.name,
         description: details.contributionPurpose || '',
         language_id: details.languageId,
         storage_path: uploadData.path,
@@ -463,9 +481,27 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                   )}
                 </div>
 
+                {selectedFile && (
+                  <label className="block mb-8">
+                    <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/35">
+                      Title
+                    </span>
+                    <input
+                      type="text"
+                      value={details.title}
+                      onChange={(e) => updateDetailField('title', e.target.value)}
+                      placeholder="A readable title — not the filename"
+                      className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
+                    />
+                    <span className="mt-1 block text-xs text-white/25">
+                      Suggested from the filename — edit it to something a reader would recognize.
+                    </span>
+                  </label>
+                )}
+
                 <button
                   onClick={handleUpload}
-                  disabled={!selectedSubtype || !selectedFile}
+                  disabled={!selectedSubtype || !selectedFile || !details.title.trim()}
                   className="w-full h-12 bg-white text-black font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Start Scanning
@@ -514,7 +550,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                 
                 <div className="glass rounded-2xl p-6 mb-8 text-left">
                   <div className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1">Submitted</div>
-                  <div className="text-xl font-display font-bold truncate">{selectedFile?.name}</div>
+                  <div className="text-xl font-display font-bold truncate">{details.title.trim() || selectedFile?.name}</div>
                   <div className="text-sm text-white/40 mt-2">
                     {selectedSubtype?.name} · {languages.find(l => l.id === details.languageId)?.name || 'Unknown language'}
                   </div>

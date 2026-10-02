@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Play, Pause, SkipForward, SkipBack, 
   Volume2, Download, Share2, Clock, Calendar, 
-  User, FileText, Music, Video, Book, 
+  User, FileText, Music, Video, Book, Database,
   ChevronRight, ChevronLeft, Expand, Lock, Loader2, CheckCircle2
 } from 'lucide-react';
 import { ContentItem } from '../types';
@@ -167,17 +167,18 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
     onPrevious();
   };
 
-  const Icon = {
-    Articles: FileText,
-    Audio: Music,
-    Video: Video,
-    Books: Book,
-  }[item.category];
-
   // Prefer the new taxonomy's mediaKind; fall back to a guess from the
   // legacy flat category for rows uploaded before that column existed.
+  // Defined before Icon below so the badge/Recommended icons follow the
+  // same real classification as the player branch, instead of reading the
+  // legacy `category` column directly -- that column now silently defaults
+  // to 'Audio' in the database for every upload (nothing has written to it
+  // since the taxonomy replaced it), so using it for the icon meant every
+  // new upload showed a music note regardless of actual content type.
   const effectiveMediaKind: 'audio' | 'video' | 'document' | 'dataset' =
     item.mediaKind || (item.category === 'Audio' ? 'audio' : item.category === 'Video' ? 'video' : 'document');
+
+  const Icon = { audio: Music, video: Video, document: FileText, dataset: Database }[effectiveMediaKind];
 
   // Real "Recommended" items: prefer the same content group, fall back to
   // the same language, always excluding the item itself.
@@ -395,8 +396,13 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
                 </header>
                 
                 <div className="text-white/80 leading-relaxed text-lg font-serif">
-                  {item.transcript || "No transcript or preview is available for this item yet."}
+                  {item.transcript || item.description || "No transcript or preview is available for this item yet."}
                 </div>
+                {!item.transcript && item.description && (
+                  <p className="mt-3 text-xs text-white/25">
+                    Showing the contributor's description — no full transcript has been added for this item yet.
+                  </p>
+                )}
               </div>
             )}
           </div>

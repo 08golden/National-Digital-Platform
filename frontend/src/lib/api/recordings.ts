@@ -94,7 +94,11 @@ function resolveLanguageId(dbLanguageName?: string, fallbackUuid?: string): stri
   return fallbackUuid || 'all';
 }
 
-function mapRecordingToContentItem(row: any, categoryById: Map<string, any>): ContentItem {
+function mapRecordingToContentItem(
+  row: any,
+  categoryById: Map<string, any>,
+  authorByUserId: Map<string, string>
+): ContentItem {
   const subtype = row.category_id ? categoryById.get(row.category_id) : undefined;
   const group = subtype?.parentId ? categoryById.get(subtype.parentId) : undefined;
   const topics: string[] = (row.recording_tags || [])
@@ -108,7 +112,7 @@ function mapRecordingToContentItem(row: any, categoryById: Map<string, any>): Co
     languageId: resolveLanguageId(row.languages?.name, row.language_id),
     description: row.description || '',
     storagePath: row.storage_path || undefined,
-    author: row.users?.display_name || row.users?.username || undefined,
+    author: (row.uploaded_by && authorByUserId.get(row.uploaded_by)) || undefined,
     date: row.created_at,
     dataUseConsent: {
       allowDownload: row.allow_download !== false,
@@ -124,27 +128,53 @@ function mapRecordingToContentItem(row: any, categoryById: Map<string, any>): Co
 }
 
 /**
+ * Uploader display names can't come from embedding users(...) through the
+ * uploaded_by foreign key directly -- users_select_own_or_admin RLS blocks
+ * that join for every viewer except the uploader themselves or an admin,
+ * which is why every item used to show "Unknown contributor" regardless of
+ * who actually uploaded it. get_public_profiles is a narrow SECURITY
+ * DEFINER RPC (see migration 20260930000001) that only ever returns
+ * username/display_name, nothing else from the row, so it's safe to call
+ * for any set of uploader ids.
+ */
+async function fetchAuthorNames(uploaderIds: string[]): Promise<Map<string, string>> {
+  const unique = Array.from(new Set(uploaderIds.filter(Boolean)));
+  if (unique.length === 0) return new Map();
+  const { data, error } = await supabase.rpc('get_public_profiles', { user_ids: unique });
+  if (error || !data) return new Map();
+  const map = new Map<string, string>();
+  for (const row of data as any[]) {
+    const name = row.display_name || row.username;
+    if (name) map.set(row.id, name);
+  }
+  return map;
+}
+
+/**
  * Fetches every published recording directly via the Supabase client (RLS
  * allows anyone to read status='published' rows), joined with language,
- * uploader, category and topic-tag names, and maps them onto ContentItem
- * for the Library/Search UI. The category tree is fetched once and used to
- * resolve each row's group/sub-type client-side rather than attempting a
- * PostgREST self-join embed on categories.parent_id, which is awkward to
- * express reliably.
+ * category and topic-tag names, and maps them onto ContentItem for the
+ * Library/Search UI. The category tree is fetched once and used to resolve
+ * each row's group/sub-type client-side rather than attempting a PostgREST
+ * self-join embed on categories.parent_id, which is awkward to express
+ * reliably. Uploader names are resolved in a second batched call (see
+ * fetchAuthorNames) since they can't come from a direct embed.
  */
 export async function getPublishedContentItems(): Promise<ContentItem[]> {
   const [{ data, error }, categoryTree] = await Promise.all([
     supabase
       .from('recordings')
-      .select('id, title, description, category, category_id, storage_path, created_at, language_id, allow_download, allow_sharing, languages(name), users(username, display_name), recording_tags(tags(name))')
+      .select('id, title, description, category, category_id, storage_path, created_at, language_id, uploaded_by, allow_download, allow_sharing, languages(name), recording_tags(tags(name))')
       .eq('status', 'published')
       .order('created_at', { ascending: false }),
     getCategoryTreeFlat().catch(() => []),
   ]);
 
   if (error) throw new Error(error.message);
+  const rows = data || [];
   const categoryById = new Map<string, CategoryNode>(categoryTree.map((c) => [c.id, c] as [string, CategoryNode]));
-  return (data || []).map((row) => mapRecordingToContentItem(row, categoryById));
+  const authorByUserId = await fetchAuthorNames(rows.map((r: any) => r.uploaded_by));
+  return rows.map((row) => mapRecordingToContentItem(row, categoryById, authorByUserId));
 }
 
 /**
@@ -159,7 +189,7 @@ export async function getContentItemById(id: string): Promise<ContentItem | null
   const [{ data, error }, categoryTree] = await Promise.all([
     supabase
       .from('recordings')
-      .select('id, title, description, category, category_id, storage_path, created_at, language_id, allow_download, allow_sharing, languages(name), users(username, display_name), recording_tags(tags(name))')
+      .select('id, title, description, category, category_id, storage_path, created_at, language_id, uploaded_by, allow_download, allow_sharing, languages(name), recording_tags(tags(name))')
       .eq('id', id)
       .maybeSingle(),
     getCategoryTreeFlat().catch(() => []),
@@ -168,7 +198,8 @@ export async function getContentItemById(id: string): Promise<ContentItem | null
   if (error) throw new Error(error.message);
   if (!data) return null;
   const categoryById = new Map<string, CategoryNode>(categoryTree.map((c) => [c.id, c] as [string, CategoryNode]));
-  return mapRecordingToContentItem(data, categoryById);
+  const authorByUserId = await fetchAuthorNames([(data as any).uploaded_by]);
+  return mapRecordingToContentItem(data, categoryById, authorByUserId);
 }
 
 /**
