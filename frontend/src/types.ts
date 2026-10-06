@@ -32,6 +32,7 @@ export interface ContentItem {
   url?: string;
   storagePath?: string;    // path in the private 'recordings' storage bucket; resolved to a signed url on demand
   author?: string;
+  uploaderId?: string;    // raw uploaded_by user id — for ownership checks (edit transcript, etc), separate from the display-only `author` name
   duration?: string;
   date?: string;
   dataUseConsent?: DataUseConsent;

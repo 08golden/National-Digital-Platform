@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { getLanguages } from '../lib/api/languages';
 import { getCategoryTree, getTopics, CategoryNode, Topic, MediaKind } from '../lib/api/categories';
+import { createTranscript } from '../lib/api/transcripts';
 import { cn } from '../lib/utils';
 
 interface UploadModalProps {
@@ -61,6 +62,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
     languageId: '',
     contributionPurpose: '',
     title: '',
+    transcript: '',
   });
   const [languages, setLanguages] = useState<LanguageOption[]>([]);
   const [languagesError, setLanguagesError] = useState('');
@@ -189,6 +191,24 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || 'Failed to create recording');
+      }
+
+      const { data: recordingData } = await res.json();
+
+      // Transcript is optional at upload time — most contributors won't
+      // have one ready yet (transcribing audio/video takes real time after
+      // the fact). Non-fatal if it fails: the recording itself already
+      // succeeded, and a transcript can always be added later from the
+      // item's detail page.
+      if (details.transcript.trim() && recordingData?.id) {
+        try {
+          await createTranscript(recordingData.id, {
+            content: details.transcript.trim(),
+            language_id: details.languageId,
+          });
+        } catch {
+          // non-fatal
+        }
       }
 
       setUploadProgress(100);
@@ -495,6 +515,23 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                     />
                     <span className="mt-1 block text-xs text-white/25">
                       Suggested from the filename — edit it to something a reader would recognize.
+                    </span>
+                  </label>
+                )}
+
+                {selectedFile && (
+                  <label className="block mb-8">
+                    <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/35">
+                      Transcript (optional)
+                    </span>
+                    <textarea
+                      value={details.transcript}
+                      onChange={(e) => updateDetailField('transcript', e.target.value)}
+                      placeholder="If you already have a transcript ready, paste it here. You can also add or edit this later from the item's page."
+                      className="min-h-28 w-full resize-none rounded-xl border border-white/10 bg-white/5 p-4 text-sm outline-none transition-all placeholder:text-white/25 focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
+                    />
+                    <span className="mt-1 block text-xs text-white/25">
+                      Reviewed by an admin before it's shown publicly — leave this blank and add it later if it's not ready.
                     </span>
                   </label>
                 )}

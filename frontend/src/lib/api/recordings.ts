@@ -113,6 +113,7 @@ function mapRecordingToContentItem(
     description: row.description || '',
     storagePath: row.storage_path || undefined,
     author: (row.uploaded_by && authorByUserId.get(row.uploaded_by)) || undefined,
+    uploaderId: row.uploaded_by || undefined,
     date: row.created_at,
     dataUseConsent: {
       allowDownload: row.allow_download !== false,

@@ -4,13 +4,15 @@ import {
   X, Play, Pause, SkipForward, SkipBack, 
   Volume2, Download, Share2, Clock, Calendar, 
   User, FileText, Music, Video, Book, Database,
-  ChevronRight, ChevronLeft, Expand, Lock, Loader2, CheckCircle2
+  ChevronRight, ChevronLeft, Expand, Lock, Loader2, CheckCircle2, Pencil, Send
 } from 'lucide-react';
 import { ContentItem } from '../types';
 import { cn } from '../lib/utils';
 import { useShareRequests } from '../contexts/ShareRequestsContext';
 import { ShareRequestModal } from './ShareRequestModal';
 import { getRecordingSignedUrl } from '../lib/api/recordings';
+import { useAuth } from '../contexts/AuthContext';
+import { getTranscriptsByRecording, createTranscript, updateTranscript, Transcript } from '../lib/api/transcripts';
 
 interface ContentDetailsProps {
   item: ContentItem;
@@ -49,8 +51,86 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
   const [urlError, setUrlError] = useState('');
 
   const { getRequestForContent } = useShareRequests();
+  const { appUser } = useAuth();
 
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Transcripts: the backend already enforces a real draft -> approved
+  // workflow (see lib/api/transcripts.ts) — this just surfaces it. A
+  // non-owner/non-admin only ever gets the approved one (if any) back from
+  // the API; the owner/admin also gets non-approved drafts, which is what
+  // lets them keep editing/reviewing below.
+  const [transcripts, setTranscripts] = useState<Transcript[]>([]);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [editingTranscript, setEditingTranscript] = useState(false);
+  const [transcriptDraft, setTranscriptDraft] = useState('');
+  const [transcriptBusy, setTranscriptBusy] = useState(false);
+  const [transcriptActionError, setTranscriptActionError] = useState('');
+
+  const isOwnerOrAdmin = Boolean(appUser && (appUser.id === item.uploaderId || appUser.role === 'admin'));
+  const isAdmin = appUser?.role === 'admin';
+  const approvedTranscript = transcripts.find((t) => t.status === 'approved');
+  // For a regular owner this is their own draft; for an admin it's whatever
+  // non-approved transcript is visible to review (any creator — the
+  // backend now returns every transcript on a recording to an admin, not
+  // just their own, specifically so moderation works).
+  const reviewableTranscript = transcripts.find((t) =>
+    t.status !== 'approved' && (isAdmin || t.created_by === appUser?.id)
+  );
+
+  const loadTranscripts = () => {
+    setTranscriptLoading(true);
+    getTranscriptsByRecording(item.id)
+      .then(setTranscripts)
+      .catch(() => setTranscripts([]))
+      .finally(() => setTranscriptLoading(false));
+  };
+
+  useEffect(() => {
+    loadTranscripts();
+    setEditingTranscript(false);
+    setTranscriptActionError('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+
+  const startEditingTranscript = () => {
+    setTranscriptDraft((reviewableTranscript || approvedTranscript)?.content || '');
+    setTranscriptActionError('');
+    setEditingTranscript(true);
+  };
+
+  const saveTranscript = async () => {
+    const content = transcriptDraft.trim();
+    if (!content || transcriptBusy) return;
+    setTranscriptBusy(true);
+    setTranscriptActionError('');
+    try {
+      if (reviewableTranscript) {
+        await updateTranscript(item.id, reviewableTranscript.id, { content });
+      } else {
+        await createTranscript(item.id, { content, language_id: item.languageId });
+      }
+      setEditingTranscript(false);
+      loadTranscripts();
+    } catch (e) {
+      setTranscriptActionError(e instanceof Error ? e.message : 'Failed to save transcript.');
+    } finally {
+      setTranscriptBusy(false);
+    }
+  };
+
+  const publishTranscript = async (transcriptId: string) => {
+    setTranscriptBusy(true);
+    setTranscriptActionError('');
+    try {
+      await updateTranscript(item.id, transcriptId, { status: 'approved' });
+      loadTranscripts();
+    } catch (e) {
+      setTranscriptActionError(e instanceof Error ? e.message : 'Failed to publish transcript.');
+    } finally {
+      setTranscriptBusy(false);
+    }
+  };
 
   // Real uploads only carry a storagePath (the 'recordings' bucket is
   // private) — mock/demo items carry a ready-to-use url directly. Resolve a
@@ -395,13 +475,75 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
                   </div>
                 </header>
                 
-                <div className="text-white/80 leading-relaxed text-lg font-serif">
-                  {item.transcript || item.description || "No transcript or preview is available for this item yet."}
-                </div>
-                {!item.transcript && item.description && (
-                  <p className="mt-3 text-xs text-white/25">
-                    Showing the contributor's description — no full transcript has been added for this item yet.
-                  </p>
+                {editingTranscript ? (
+                  <div className="space-y-3">
+                    <textarea
+                      value={transcriptDraft}
+                      onChange={(e) => setTranscriptDraft(e.target.value)}
+                      rows={10}
+                      className="w-full resize-none rounded-xl border border-white/10 bg-white/5 p-4 text-base text-white/80 font-serif leading-relaxed outline-none focus:border-amber-500/50"
+                    />
+                    {transcriptActionError && <p className="text-xs text-red-400">{transcriptActionError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={saveTranscript}
+                        disabled={transcriptBusy || !transcriptDraft.trim()}
+                        className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-black disabled:opacity-50"
+                      >
+                        {transcriptBusy ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => setEditingTranscript(false)}
+                        className="rounded-xl bg-white/5 px-4 py-2 text-sm text-white/60 hover:bg-white/10"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-white/80 leading-relaxed text-lg font-serif">
+                      {transcriptLoading
+                        ? 'Loading transcript...'
+                        : approvedTranscript?.content
+                        || reviewableTranscript?.content
+                        || item.description
+                        || "No transcript or preview is available for this item yet."}
+                    </div>
+
+                    {!transcriptLoading && !approvedTranscript?.content && (reviewableTranscript?.content || item.description) && (
+                      <p className="mt-3 text-xs text-white/25">
+                        {reviewableTranscript
+                          ? isAdmin && reviewableTranscript.created_by !== appUser?.id
+                            ? `Showing a transcript awaiting review (submitted by its contributor) — ${reviewableTranscript.status}.`
+                            : `Showing your own transcript — ${reviewableTranscript.status === 'draft' ? "it's a draft; publish it below once you're ready" : "it's awaiting admin review"}.`
+                          : "Showing the contributor's description — no full transcript has been added for this item yet."}
+                      </p>
+                    )}
+
+                    {isOwnerOrAdmin && !transcriptLoading && (
+                      <div className="mt-6 flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={startEditingTranscript}
+                          className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10"
+                        >
+                          <Pencil size={14} />
+                          {reviewableTranscript || approvedTranscript ? 'Edit transcript' : 'Add transcript'}
+                        </button>
+                        {isAdmin && reviewableTranscript && (
+                          <button
+                            onClick={() => publishTranscript(reviewableTranscript.id)}
+                            disabled={transcriptBusy}
+                            className="flex items-center gap-2 rounded-xl bg-green-500/20 px-4 py-2 text-sm text-green-400 hover:bg-green-500/30 disabled:opacity-50"
+                          >
+                            <Send size={14} />
+                            Publish
+                          </button>
+                        )}
+                        {transcriptActionError && <p className="text-xs text-red-400">{transcriptActionError}</p>}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

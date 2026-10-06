@@ -29,12 +29,20 @@ export async function GET(
 
   if (isAuthed) {
     const supabase = createUserClient(userAuth.token!)
-    const { data, error } = await supabase
-      .from('transcripts')
-      .select('*')
-      .eq('recording_id', id)
-      .or(`status.eq.approved,created_by.eq.${userAuth.user!.id}`)
-      .order('created_at', { ascending: false })
+
+    // Admins need to see every transcript on a recording to moderate them
+    // (approve/reject), not just ones they personally authored -- RLS
+    // (transcripts_select_via_recording) already grants admins full read
+    // access regardless of status, so this just stops the route's own
+    // extra filter from hiding everything RLS would otherwise allow.
+    const adminCheck = await requireAdmin(request)
+    const isAdmin = !adminCheck.error
+
+    let query = supabase.from('transcripts').select('*').eq('recording_id', id)
+    if (!isAdmin) {
+      query = query.or(`status.eq.approved,created_by.eq.${userAuth.user!.id}`)
+    }
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) return Response.json({ error: error.message }, { status: 500 })
     return Response.json({ data })
