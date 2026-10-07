@@ -108,7 +108,15 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
       if (reviewableTranscript) {
         await updateTranscript(item.id, reviewableTranscript.id, { content });
       } else {
-        await createTranscript(item.id, { content, language_id: item.languageId });
+        // item.languageId is the display-oriented slug used for sidebar
+        // filter matching (e.g. 'otjiherero'), not a real database id —
+        // transcripts.language_id is a UUID foreign key, so it needs
+        // item.languageUuid instead. Sending the slug here silently failed
+        // every transcript creation from this screen (invalid UUID).
+        if (!item.languageUuid) {
+          throw new Error("This item's language couldn't be determined — try reopening it and saving again.");
+        }
+        await createTranscript(item.id, { content, language_id: item.languageUuid });
       }
       setEditingTranscript(false);
       loadTranscripts();

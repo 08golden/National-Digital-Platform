@@ -110,6 +110,7 @@ function mapRecordingToContentItem(
     title: row.title,
     category: row.category || 'Audio',
     languageId: resolveLanguageId(row.languages?.name, row.language_id),
+    languageUuid: row.language_id || undefined,
     description: row.description || '',
     storagePath: row.storage_path || undefined,
     author: (row.uploaded_by && authorByUserId.get(row.uploaded_by)) || undefined,

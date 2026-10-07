@@ -25,7 +25,8 @@ export interface ContentItem {
   id: string;
   title: string;
   category: Category; // legacy flat category — kept for old mock/pre-taxonomy rows; prefer categoryGroupId/categorySubtypeId below when present
-  languageId: string;
+  languageId: string;      // display-oriented: resolved to the LANGUAGES constant's slug id (e.g. 'otjiherero') for sidebar filter matching — NOT a database UUID, see languageUuid below
+  languageUuid?: string;   // the real languages.id UUID from the recordings row — use this when writing to anything with a language_id foreign key (e.g. creating a transcript)
   description: string;
   thumbnail?: string;
   transcript?: string;
