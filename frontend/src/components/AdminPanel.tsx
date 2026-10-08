@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { AppUser } from '../types';
@@ -31,6 +31,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
   const [loading, setLoading] = useState(true);
   const [usersError, setUsersError] = useState('');
   const [activeTab, setActiveTab] = useState<'users' | 'applications' | 'moderation' | 'uploads' | 'taxonomy' | 'share-requests'>('users');
+
+  // The tab content area scrolls independently of the header/tab bar. Without
+  // this, scrolling down in a long tab (Taxonomy, Uploads...) and then
+  // switching tabs leaves the scroll position wherever it was, so the new
+  // tab renders starting mid-way down — which looks like the panel is
+  // "misaligned" or cut off at the top. Reset to the top on every switch.
+  const contentRef = useRef<HTMLDivElement>(null);
+  const tabBarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+    // Keep the newly active tab visible in the (horizontally scrollable)
+    // tab bar too — on narrower screens six tabs overflow, and clicking
+    // one near the edge could leave it half cut off.
+    const active = tabBarRef.current?.querySelector<HTMLElement>('[data-active="true"]');
+    active?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+  }, [activeTab]);
   const { requests: shareRequests, pendingCount, approveRequest, rejectRequest } = useShareRequests();
 
   const [applications, setApplications] = useState<ContributorApplicant[]>([]);
@@ -205,7 +222,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
         exit={{ scale: 0.95, opacity: 0, y: 30 }}
         className="relative w-full max-w-5xl glass-dark rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[85vh] border border-white/10"
       >
-        <header className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+        <header className="shrink-0 p-6 sm:p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-amber-500 rounded-2xl flex items-center justify-center text-black shadow-xl shadow-amber-500/20">
               <ShieldAlert size={32} />
@@ -220,13 +237,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
           </button>
         </header>
 
-        <div className="flex gap-2 px-8 pt-6 border-b border-white/5 overflow-x-auto">
+        <div ref={tabBarRef} className="flex shrink-0 gap-2 px-4 sm:px-8 pt-6 border-b border-white/5 overflow-x-auto overflow-y-hidden scrollbar-hide">
           {(['users', 'applications', 'moderation', 'uploads', 'taxonomy', 'share-requests'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
+              data-active={activeTab === tab}
               className={cn(
-                "px-6 py-3 rounded-t-2xl font-bold text-sm uppercase tracking-wider transition-all whitespace-nowrap relative",
+                "shrink-0 px-4 sm:px-6 py-3 rounded-t-2xl font-bold text-xs sm:text-sm uppercase tracking-wider transition-all whitespace-nowrap relative",
                 activeTab === tab
                   ? "bg-amber-500 text-black shadow-xl"
                   : "text-white/50 hover:text-white hover:bg-white/5"
@@ -282,7 +300,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
           ))}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 md:p-10 custom-scrollbar">
+        <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8 md:p-10 custom-scrollbar">
           {activeTab === 'users' && (
             loading ? (
               <div className="text-center py-20 text-white/40">Loading users...</div>
