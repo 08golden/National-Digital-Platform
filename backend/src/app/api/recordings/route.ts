@@ -116,12 +116,28 @@ export async function POST(request: Request) {
       }
     }
 
+    // Moderation exists so an admin can review what *other* people submit.
+    // An admin uploading their own material has no one to review it for
+    // them, so it goes straight to published. Everyone else — contributors
+    // — still starts in 'pending'. (The database also enforces this: a
+    // trigger forces non-admin inserts to 'pending' even if a client
+    // bypasses this route and sends status itself.)
+    let uploaderIsAdmin = false
+    if (uploadedBy && !bypass) {
+      const { data: uploaderProfile } = await supabaseAdmin
+        .from('users')
+        .select('role')
+        .eq('id', uploadedBy)
+        .single()
+      uploaderIsAdmin = uploaderProfile?.role === 'admin'
+    }
+
     const insertPayload: Record<string, string | boolean | null> = {
       title: title ?? null,
       description: description ?? null,
       language_id: resolvedLanguageId ?? null,
       uploaded_by: uploadedBy ?? null,
-      status: 'pending',
+      status: uploaderIsAdmin ? 'published' : 'pending',
     }
 
     if (storage_path) insertPayload.storage_path = storage_path
@@ -154,7 +170,7 @@ export async function POST(request: Request) {
     }
 
     return Response.json({
-      message: 'Recording submitted for review',
+      message: uploaderIsAdmin ? 'Recording published' : 'Recording submitted for review',
       data,
     })
   } catch {

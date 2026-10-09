@@ -79,6 +79,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
   const [allowSharing, setAllowSharing] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  // Admins' uploads are published immediately (nobody else needs to review them);
+  // everyone else's wait in moderation. The server decides — we just report it.
+  const [publishedImmediately, setPublishedImmediately] = useState(false);
 
   useEffect(() => {
     getLanguages()
@@ -194,6 +197,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
       }
 
       const { data: recordingData } = await res.json();
+      setPublishedImmediately(recordingData?.status === 'published');
 
       // Transcript is optional at upload time — most contributors won't
       // have one ready yet (transcribing audio/video takes real time after
@@ -582,7 +586,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({ onClose }) => {
                 </div>
                 <h3 className="text-2xl font-bold mb-2">Upload Complete!</h3>
                 <p className="text-white/40 text-sm mb-8">
-                  Your contribution has been saved and is now pending moderation.
+                  {publishedImmediately
+                    ? 'Your contribution is published and now live in the Digital Library.'
+                    : 'Your contribution has been saved and is now pending moderation.'}
                 </p>
                 
                 <div className="glass rounded-2xl p-6 mb-8 text-left">

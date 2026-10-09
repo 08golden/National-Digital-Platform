@@ -77,6 +77,14 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
   const reviewableTranscript = transcripts.find((t) =>
     t.status !== 'approved' && (isAdmin || t.created_by === appUser?.id)
   );
+  // Which transcript an edit applies to. The backend lets an admin edit any
+  // transcript in place, but lets an owner edit only their own *draft* — so
+  // for an owner, once a transcript is approved there's nothing left to
+  // edit (and "Add" would just create a confusing duplicate).
+  const editTarget = reviewableTranscript || (isAdmin ? approvedTranscript : undefined);
+  const canEditTranscript = isAdmin
+    ? true
+    : isOwnerOrAdmin && !approvedTranscript && (!reviewableTranscript || reviewableTranscript.status === 'draft');
 
   const loadTranscripts = () => {
     setTranscriptLoading(true);
@@ -94,7 +102,7 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
   }, [item.id]);
 
   const startEditingTranscript = () => {
-    setTranscriptDraft((reviewableTranscript || approvedTranscript)?.content || '');
+    setTranscriptDraft(editTarget?.content || '');
     setTranscriptActionError('');
     setEditingTranscript(true);
   };
@@ -105,8 +113,8 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
     setTranscriptBusy(true);
     setTranscriptActionError('');
     try {
-      if (reviewableTranscript) {
-        await updateTranscript(item.id, reviewableTranscript.id, { content });
+      if (editTarget) {
+        await updateTranscript(item.id, editTarget.id, { content });
       } else {
         // item.languageId is the display-oriented slug used for sidebar
         // filter matching (e.g. 'otjiherero'), not a real database id —
@@ -529,14 +537,14 @@ export const ContentDetails: React.FC<ContentDetailsProps> = ({
                       </p>
                     )}
 
-                    {isOwnerOrAdmin && !transcriptLoading && (
+                    {canEditTranscript && !transcriptLoading && (
                       <div className="mt-6 flex flex-wrap items-center gap-2">
                         <button
                           onClick={startEditingTranscript}
                           className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm text-white/70 hover:bg-white/10"
                         >
                           <Pencil size={14} />
-                          {reviewableTranscript || approvedTranscript ? 'Edit transcript' : 'Add transcript'}
+                          {editTarget ? 'Edit transcript' : 'Add transcript'}
                         </button>
                         {isAdmin && reviewableTranscript && (
                           <button

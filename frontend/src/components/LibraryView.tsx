@@ -12,7 +12,8 @@ import { cn } from '../lib/utils';
 import { searchContent } from '../lib/search';
 import { ContentDetails } from './ContentDetails';
 import { useAuth } from '../contexts/AuthContext';
-import { getPublishedContentItems } from '../lib/api/recordings';
+import { getPublishedContentItems, resolveLanguageId } from '../lib/api/recordings';
+import { getLanguages } from '../lib/api/languages';
 import { getCategoryTree, getTopics, CategoryNode, Topic } from '../lib/api/categories';
 
 interface LibraryViewProps {
@@ -53,10 +54,6 @@ const formatDate = (iso?: string) => {
     : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-const LANGUAGE_LABELS = Object.fromEntries(
-  LANGUAGES.map(language => [language.id, language.name])
-) as Record<string, string>;
-
 type SidebarItem = {
   label: string;
   meta: string;
@@ -93,6 +90,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
   const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
+  const [dbLanguages, setDbLanguages] = useState<{ id: string; name: string; local_name?: string }[]>([]);
 
   const fetchContent = () => {
     setContentLoading(true);
@@ -107,6 +105,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     fetchContent();
     getCategoryTree().then(setCategoryTree).catch(() => {});
     getTopics().then(setTopics).catch(() => {});
+    getLanguages().then(setDbLanguages).catch(() => {});
   }, []);
 
   const updateSelectedGroup = (groupId: string | null) => {
@@ -151,7 +150,26 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     [content, browseLanguageId]
   );
 
-  const languageOptions = LANGUAGES;
+  // One language list for the whole platform: the same active rows in the
+  // `languages` table that the contributor upload dropdown offers. Each
+  // option's id goes through resolveLanguageId — the exact function that
+  // sets every item's languageId — so item counts and filters line up for
+  // any language, including ones added later that the hardcoded home-screen
+  // list has never heard of. The constants list now only contributes the
+  // decorative greeting text where a name matches.
+  const languageOptions = useMemo(() => {
+    const fromDb = dbLanguages.map((l) => {
+      const id = resolveLanguageId(l.name, l.id);
+      const themed = LANGUAGES.find((c) => c.id === id);
+      return { id, name: l.name as string, greeting: themed?.greeting || l.local_name || '' };
+    });
+    return [{ id: 'all', name: 'All Languages', greeting: 'Hello' }, ...fromDb];
+  }, [dbLanguages]);
+
+  const LANGUAGE_LABELS = useMemo(
+    () => Object.fromEntries(languageOptions.map((l) => [l.id, l.name])) as Record<string, string>,
+    [languageOptions]
+  );
 
   const recentlyAccessed = scopedContent.slice(0, 3);
   const lastViewed = [...scopedContent].reverse().slice(0, 3);

@@ -84,7 +84,7 @@ export async function deleteRecording(id: string) {
  * a language with no matching entry there (keeps it counted under "All
  * Languages" even if it won't match a specific filter).
  */
-function resolveLanguageId(dbLanguageName?: string, fallbackUuid?: string): string {
+export function resolveLanguageId(dbLanguageName?: string, fallbackUuid?: string): string {
   if (dbLanguageName) {
     const match = LANGUAGES.find(
       (l) => l.name.toLowerCase() === dbLanguageName.toLowerCase()

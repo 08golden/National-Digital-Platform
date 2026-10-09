@@ -87,6 +87,17 @@ export async function POST(
       )
     }
 
+    // Same reasoning as recordings: review is for other people's work. An
+    // admin's own transcript is approved immediately; a contributor's starts
+    // as a draft for an admin to publish. (A database trigger also forces
+    // non-admin inserts to 'draft'.)
+    const { data: authorProfile } = await supabaseAdmin
+      .from('users')
+      .select('role')
+      .eq('id', auth.user.id)
+      .single()
+    const authorIsAdmin = authorProfile?.role === 'admin'
+
     const { data, error } = await supabase
       .from('transcripts')
       .insert({
@@ -96,7 +107,7 @@ export async function POST(
         language_id,
         is_translation:     is_translation     ?? false,
         source_language_id: source_language_id ?? null,
-        status: 'draft',
+        status: authorIsAdmin ? 'approved' : 'draft',
         metadata: {},
       })
       .select()

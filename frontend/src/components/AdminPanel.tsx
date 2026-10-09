@@ -176,13 +176,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
     }
   };
 
-  const updateRole = async (userId: string, newRole: 'admin' | 'contributor' | 'viewer') => {
-    await supabase.from('users').update({ role: newRole }).eq('id', userId);
+  // Errors from these two used to be dropped on the floor. They matter now:
+  // the database refuses to demote or deactivate the last active admin, and
+  // that message needs to reach whoever clicked.
+  const [userActionError, setUserActionError] = useState('');
+
+  const updateRole = async (
+    userId: string,
+    newRole: 'admin' | 'contributor' | 'viewer',
+    confirmMessage?: string
+  ) => {
+    if (confirmMessage && !window.confirm(confirmMessage)) return;
+    setUserActionError('');
+    const { error } = await supabase.from('users').update({ role: newRole }).eq('id', userId);
+    if (error) setUserActionError(error.message);
     fetchUsers();
   };
 
   const toggleActive = async (userId: string, isActive: boolean) => {
-    await supabase.from('users').update({ is_active: isActive }).eq('id', userId);
+    setUserActionError('');
+    const { error } = await supabase.from('users').update({ is_active: isActive }).eq('id', userId);
+    if (error) setUserActionError(error.message);
     fetchUsers();
   };
 
@@ -320,6 +334,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
               <div className="text-center py-20 text-white/40">No users found yet.</div>
             ) : (
               <div className="space-y-10">
+                {userActionError && (
+                  <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
+                    <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                    <span className="flex-1">{userActionError}</span>
+                    <button onClick={() => setUserActionError('')} className="text-red-300/60 hover:text-red-200">
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+
                 {pendingRegistrations.length > 0 && (
                   <section>
                     <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-amber-500 mb-4">
@@ -353,21 +377,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                 )}
 
                 <section>
-                  <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-amber-500 mb-4">Admins</h3>
-                  {admins.map(u => (
-                    <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
-                      <div>
-                        <p className="font-bold">{u.display_name || u.username}</p>
-                        <p className="text-sm text-white/40">{u.email}</p>
+                  <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-amber-500 mb-2">Admins</h3>
+                  <p className="mb-4 text-xs text-white/35">
+                    To add an administrator, use <span className="text-white/60">Make admin</span> on an existing
+                    contributor below. They need an approved account first. Admins can approve registrations,
+                    publish content, and manage users and the taxonomy.
+                  </p>
+                  {admins.map(u => {
+                    const isSelf = u.id === appUser?.id;
+                    const name = u.display_name || u.username;
+                    return (
+                      <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
+                        <div>
+                          <p className="font-bold">
+                            {name}
+                            {isSelf && (
+                              <span className="ml-2 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-400">
+                                You
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-sm text-white/40">{u.email}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          {!isSelf && (
+                            <>
+                              <button
+                                onClick={() => updateRole(u.id, 'contributor', `Remove administrator access from ${name}? They will become a contributor.`)}
+                                className="px-3 py-1 bg-white/5 rounded-lg text-xs"
+                              >
+                                Remove admin
+                              </button>
+                              <button onClick={() => toggleActive(u.id, !u.is_active)}
+                                className={cn("px-3 py-1 rounded-lg text-xs", u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
+                                {u.is_active ? 'Active' : 'Inactive'}
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => toggleActive(u.id, !u.is_active)}
-                          className={cn("px-3 py-1 rounded-lg text-xs", u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
-                          {u.is_active ? 'Active' : 'Inactive'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </section>
 
                 <section>
@@ -379,6 +429,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                         <p className="text-sm text-white/40">{u.email}</p>
                       </div>
                       <div className="flex gap-2">
+                        <button
+                          onClick={() => updateRole(u.id, 'admin', `Make ${u.display_name || u.username} an administrator? Admins can approve registrations, publish content, and manage users and the taxonomy.`)}
+                          className="px-3 py-1 bg-red-500/10 text-red-300 rounded-lg text-xs"
+                        >
+                          Make admin
+                        </button>
                         <button onClick={() => updateRole(u.id, 'viewer')} className="px-3 py-1 bg-white/5 rounded-lg text-xs">Demote</button>
                         <button onClick={() => toggleActive(u.id, !u.is_active)}
                           className={cn("px-3 py-1 rounded-lg text-xs", u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
