@@ -1,3 +1,5 @@
+import { supabase } from '../supabaseClient';
+
 const BASE_URL = import.meta.env.VITE_API_URL;
 
 export async function getTags(filters?: { category?: string; search?: string }) {
@@ -17,9 +19,13 @@ export async function createTag(body: {
   category?: string;
   description?: string;
 }) {
+  // Admin-only on the server; it checks the caller's token.
+  const { data: session } = await supabase.auth.getSession();
+  const token = session.session?.access_token;
+  if (!token) throw new Error('You must be signed in as an admin to do this.');
   const res = await fetch(`${BASE_URL}/api/tags`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
   });
   const json = await res.json();

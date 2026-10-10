@@ -1,5 +1,5 @@
 import { supabasePublic, createUserClient, supabaseAdmin } from '../../../../../lib/supabase'
-import { requireUser } from '../../../../../lib/auth'
+import { requireUser, requireAdmin } from '../../../../../lib/auth'
 
 export async function GET(
   request: Request,
@@ -24,6 +24,18 @@ export async function GET(
 
 export async function POST(request: Request) {
   try {
+    // These endpoints write with the service-role key, which bypasses
+    // row-level security — so the check has to happen here. Without it,
+    // anyone who knew the backend URL could create entries (this is how a
+    // stray "Test" language ended up in the live list).
+    const adminAuth = await requireAdmin(request)
+    if (adminAuth.error) {
+      return Response.json(
+        { error: adminAuth.error },
+        { status: adminAuth.error === 'Admin access required' ? 403 : 401 }
+      )
+    }
+
     const body = await request.json()
     const { name, slug, category, description, metadata } = body
 
