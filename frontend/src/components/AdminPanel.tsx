@@ -2,12 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { AppUser } from '../types';
-import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload, Share2, ClipboardList, AlertTriangle, RefreshCw, Tags } from 'lucide-react';
+import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload, Share2, ClipboardList, AlertTriangle, RefreshCw, Tags, Languages } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabaseClient';
 import { ModerationTab } from './ModerationTab';
 import { UploadsTab } from './UploadsTab';
 import { TaxonomyTab } from './TaxonomyTab';
+import { LanguagesTab } from './LanguagesTab';
 import { ShareRequestsTab } from './ShareRequestsTab';
 import { useShareRequests } from '../contexts/ShareRequestsContext';
 import {
@@ -30,7 +31,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [usersError, setUsersError] = useState('');
-  const [activeTab, setActiveTab] = useState<'users' | 'applications' | 'moderation' | 'uploads' | 'taxonomy' | 'share-requests'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'applications' | 'moderation' | 'uploads' | 'taxonomy' | 'languages' | 'share-requests'>('users');
 
   // The tab content area scrolls independently of the header/tab bar. Without
   // this, scrolling down in a long tab (Taxonomy, Uploads...) and then
@@ -252,7 +253,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
         </header>
 
         <div ref={tabBarRef} className="flex shrink-0 gap-2 px-4 sm:px-8 pt-6 border-b border-white/5 overflow-x-auto overflow-y-hidden scrollbar-hide">
-          {(['users', 'applications', 'moderation', 'uploads', 'taxonomy', 'share-requests'] as const).map(tab => (
+          {(['users', 'applications', 'moderation', 'uploads', 'taxonomy', 'languages', 'share-requests'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -299,6 +300,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
               )}
               {tab === 'uploads' && <><Upload size={16} className="inline mr-2" /> Uploads</>}
               {tab === 'taxonomy' && <><Tags size={16} className="inline mr-2" /> Taxonomy</>}
+              {tab === 'languages' && <><Languages size={16} className="inline mr-2" /> Languages</>}
               {tab === 'share-requests' && (
                 <>
                   <Share2 size={16} className="inline mr-2" />
@@ -548,6 +550,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
           )}
 
           {activeTab === 'taxonomy' && <TaxonomyTab />}
+
+          {activeTab === 'languages' && <LanguagesTab />}
 
           {activeTab === 'share-requests' && (
             <ShareRequestsTab

@@ -38,9 +38,11 @@ export const TaxonomyTab: React.FC = () => {
   const [retagChoice, setRetagChoice] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
+  // Refreshes after an action must not clear `error` (the explanation for a
+  // failed action would vanish the instant it appeared) or swap the whole tab
+  // for a loading screen (which also loses the scroll position). Only the very
+  // first load shows the loading state; the Retry button clears the error itself.
   const load = async () => {
-    setLoading(true);
-    setError('');
     try {
       const [t, tp, recs] = await Promise.all([
         getCategoryTree(),
@@ -191,7 +193,7 @@ export const TaxonomyTab: React.FC = () => {
         <div className="flex items-start gap-3 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300">
           <AlertTriangle size={18} className="mt-0.5 shrink-0" />
           <span className="flex-1">{error}</span>
-          <button onClick={load} className="flex items-center gap-1 text-xs font-bold hover:text-white">
+          <button onClick={() => { setError(''); load(); }} className="flex items-center gap-1 text-xs font-bold hover:text-white">
             <RefreshCw size={12} /> Retry
           </button>
         </div>
