@@ -39,15 +39,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
   // tab renders starting mid-way down — which looks like the panel is
   // "misaligned" or cut off at the top. Reset to the top on every switch.
   const contentRef = useRef<HTMLDivElement>(null);
-  const tabBarRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (contentRef.current) contentRef.current.scrollTop = 0;
-    // Keep the newly active tab visible in the (horizontally scrollable)
-    // tab bar too — on narrower screens six tabs overflow, and clicking
-    // one near the edge could leave it half cut off.
-    const active = tabBarRef.current?.querySelector<HTMLElement>('[data-active="true"]');
-    active?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
   }, [activeTab]);
   const { requests: shareRequests, pendingCount, approveRequest, rejectRequest } = useShareRequests();
 
@@ -235,7 +229,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
         initial={{ scale: 0.95, opacity: 0, y: 30 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 30 }}
-        className="relative w-full max-w-5xl glass-dark rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[85vh] border border-white/10"
+        className="relative w-full max-w-6xl glass-dark rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[85vh] border border-white/10"
       >
         <header className="shrink-0 p-6 sm:p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
           <div className="flex items-center gap-4">
@@ -252,14 +246,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
           </button>
         </header>
 
-        <div ref={tabBarRef} className="flex shrink-0 gap-2 px-4 sm:px-8 pt-6 border-b border-white/5 overflow-x-auto overflow-y-hidden scrollbar-hide">
+        {/* Tabs wrap onto extra rows rather than scrolling sideways: a tab that is
+            off-screen with no scrollbar is simply invisible (that is how Languages
+            and Share Requests went missing once there were seven of them). */}
+        <div className="flex shrink-0 flex-wrap gap-1.5 px-4 sm:px-6 py-3 border-b border-white/5">
           {(['users', 'applications', 'moderation', 'uploads', 'taxonomy', 'languages', 'share-requests'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               data-active={activeTab === tab}
               className={cn(
-                "shrink-0 px-4 sm:px-6 py-3 rounded-t-2xl font-bold text-xs sm:text-sm uppercase tracking-wider transition-all whitespace-nowrap relative",
+                "shrink-0 px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all whitespace-nowrap relative",
                 activeTab === tab
                   ? "bg-amber-500 text-black shadow-xl"
                   : "text-white/50 hover:text-white hover:bg-white/5"
@@ -352,10 +349,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                       Pending Registrations ({pendingRegistrations.length})
                     </h3>
                     {pendingRegistrations.map(u => (
-                      <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2 border border-amber-500/20">
+                      <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 p-4 glass rounded-2xl mb-2 border border-amber-500/20">
                         <div>
                           <p className="font-bold">{u.display_name || u.username}</p>
-                          <p className="text-sm text-white/40">{u.email}</p>
+                          <p className="text-sm text-white/40 break-all">{u.email}</p>
                         </div>
                         <div className="flex gap-2">
                           <button
@@ -389,7 +386,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                     const isSelf = u.id === appUser?.id;
                     const name = u.display_name || u.username;
                     return (
-                      <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
+                      <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 p-4 glass rounded-2xl mb-2">
                         <div>
                           <p className="font-bold">
                             {name}
@@ -399,7 +396,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                               </span>
                             )}
                           </p>
-                          <p className="text-sm text-white/40">{u.email}</p>
+                          <p className="text-sm text-white/40 break-all">{u.email}</p>
                         </div>
                         <div className="flex gap-2">
                           {!isSelf && (
@@ -425,10 +422,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                 <section>
                   <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-blue-400 mb-4">Contributors</h3>
                   {contributors.map(u => (
-                    <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
+                    <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 p-4 glass rounded-2xl mb-2">
                       <div>
                         <p className="font-bold">{u.display_name || u.username}</p>
-                        <p className="text-sm text-white/40">{u.email}</p>
+                        <p className="text-sm text-white/40 break-all">{u.email}</p>
                       </div>
                       <div className="flex gap-2">
                         <button
@@ -450,10 +447,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                 <section>
                   <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-white/40 mb-4">Viewers</h3>
                   {viewers.map(u => (
-                    <div key={u.id} className="flex items-center justify-between p-4 glass rounded-2xl mb-2">
+                    <div key={u.id} className="flex flex-wrap items-center justify-between gap-3 p-4 glass rounded-2xl mb-2">
                       <div>
                         <p className="font-bold">{u.display_name || u.username}</p>
-                        <p className="text-sm text-white/40">{u.email}</p>
+                        <p className="text-sm text-white/40 break-all">{u.email}</p>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => updateRole(u.id, 'contributor')} className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-xs">Promote</button>
