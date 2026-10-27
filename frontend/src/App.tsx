@@ -18,6 +18,7 @@ import { getContributorApplications } from './lib/api/contributorApplications';
 import { getShareRequestByToken } from './lib/api/shareRequests';
 import { getContentItemById } from './lib/api/recordings';
 import { ContentDetails } from './components/ContentDetails';
+import { AboutPage } from './components/AboutPage';
 
 export default function App() {
   const { appUser, signOut, loading } = useAuth();
@@ -27,6 +28,7 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoaded, setIsLoaded] = useState(false);
   const [pendingApplications, setPendingApplications] = useState(0);
@@ -228,6 +230,14 @@ export default function App() {
               <span>Library</span>
             </button>
 
+            <button
+              onClick={() => setShowAbout(true)}
+              className="group flex shrink-0 items-center gap-2 px-4 py-2.5 sm:px-5 glass rounded-full hover:bg-white/20 transition-all text-sm font-bold border border-white/5 active:scale-95"
+            >
+              <Info size={18} className="text-amber-500" />
+              <span>About</span>
+            </button>
+
             <div className="hidden sm:block">
               <UserMenu 
                 user={appUser}
@@ -310,6 +320,7 @@ export default function App() {
         {showSettings && (
           <UserSettings onClose={() => setShowSettings(false)} user={appUser} />
         )}
+        {showAbout && <AboutPage onClose={() => setShowAbout(false)} />}
       </AnimatePresence>
     </div>
   );

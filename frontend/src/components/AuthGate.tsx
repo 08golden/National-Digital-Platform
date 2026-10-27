@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
-import { KeyRound, Mail, UserPlus, Loader2, ArrowRight, BookOpen, Upload } from 'lucide-react';
+import { KeyRound, Mail, UserPlus, Loader2, ArrowRight, BookOpen, Upload, Info } from 'lucide-react';
+import { AboutPage } from './AboutPage';
 import { cn } from '../lib/utils';
 
 const DESCRIBES_YOU_OPTIONS = ['Researcher', 'Educator', 'Student', 'Cultural Practitioner / Artist', 'Other'];
@@ -18,6 +19,7 @@ export const AuthGate: React.FC = () => {
   const [contributionDetails, setContributionDetails] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showAbout, setShowAbout] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -285,7 +287,7 @@ export const AuthGate: React.FC = () => {
                 <Loader2 className="animate-spin" size={24} />
               ) : (
                 <>
-                  <span className="text-lg">{mode === 'login' ? 'Enter Repository' : 'Submit Application'}</span>
+                  <span className="text-lg">{mode === 'login' ? 'Enter Platform' : 'Submit Application'}</span>
                   <ArrowRight size={20} className="group-hover:translate-x-1.5 transition-transform duration-300" />
                 </>
               )}
@@ -293,10 +295,21 @@ export const AuthGate: React.FC = () => {
           </form>
         </div>
 
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowAbout(true)}
+            className="flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs font-semibold text-white/50 transition-colors hover:border-amber-500/40 hover:text-amber-300"
+          >
+            <Info size={14} /> About this platform
+          </button>
+        </div>
+
         <div className="mt-7 sm:mt-12 text-center text-white/25 text-xs px-2 sm:px-12 leading-relaxed italic">
           "Language is the soul of our nation. By entering, you pledge to handle these digital artifacts with the reverence they deserve."
         </div>
       </motion.div>
+      <AnimatePresence>{showAbout && <AboutPage onClose={() => setShowAbout(false)} />}</AnimatePresence>
     </div>
   );
 };

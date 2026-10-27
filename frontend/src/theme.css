@@ -1,0 +1,31 @@
+/*
+ * Platform colour palette — aligned with NamTalkies.
+ *
+ * What is verified: NamTalkies declares its theme colour as #1A1208 (a near-black
+ * warm brown) and describes its look as drawn from Namibia's living heritage.
+ * That base is used exactly, as --color-zinc-950 (the page background).
+ *
+ * What is derived: every other step below is generated from that same hue
+ * (about 33 degrees) at stepped lightness, so surfaces, borders and text sit in one
+ * warm family instead of the cool greys used before. The amber accent used
+ * across the app is unchanged.
+ *
+ * To match NamTalkies more closely, change values here — nothing else in the
+ * app hard-codes the neutrals. (Components use zinc-*, black and white/opacity.)
+ */
+@theme {
+  --color-zinc-50: #faf8f5;
+  --color-zinc-100: #f4f0eb;
+  --color-zinc-200: #e7e1da;
+  --color-zinc-300: #d0c8bd;
+  --color-zinc-400: #ab9f92;
+  --color-zinc-500: #857766;
+  --color-zinc-600: #5f5344;
+  --color-zinc-700: #4a3e2e;
+  --color-zinc-800: #392d1d;
+  --color-zinc-900: #2a1f11;
+  --color-zinc-950: #1a1208; /* NamTalkies' own theme colour, read from its page header */
+
+  /* Pure black becomes a warm near-black so backdrops and dark text match the base. */
+  --color-black: #120c05;
+}
