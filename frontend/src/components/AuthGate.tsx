@@ -13,6 +13,8 @@ export const AuthGate: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [affiliation, setAffiliation] = useState('');
+  const [country, setCountry] = useState('');
   const [describesYou, setDescribesYou] = useState('');
   const [describesYouOther, setDescribesYouOther] = useState('');
   const [desiredRole, setDesiredRole] = useState<'viewer' | 'contributor'>('viewer');
@@ -37,7 +39,8 @@ export const AuthGate: React.FC = () => {
           name,
           who,
           desiredRole,
-          desiredRole === 'contributor' ? contributionDetails : undefined
+          desiredRole === 'contributor' ? contributionDetails : undefined,
+          { affiliation: affiliation.trim(), country: country.trim() }
         );
         alert('Your application has been received. If email confirmation is on, check your inbox.');
         setMode('login');
@@ -129,6 +132,33 @@ export const AuthGate: React.FC = () => {
                       className="w-full h-14 sm:h-16 pl-14 pr-6 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
                       required={mode === 'register'}
                     />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      type="text"
+                      aria-label="Organisation or institution"
+                      placeholder="Organisation / institution (or 'Independent')"
+                      value={affiliation}
+                      onChange={(e) => setAffiliation(e.target.value)}
+                      className="w-full h-14 px-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
+                      required={mode === 'register'}
+                    />
+                    <input
+                      type="text"
+                      aria-label="Country"
+                      list="signup-countries"
+                      placeholder="Country"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="w-full h-14 px-5 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:bg-white/10 transition-all text-base"
+                      required={mode === 'register'}
+                    />
+                    <datalist id="signup-countries">
+                      {['Namibia', 'South Africa', 'Botswana', 'Angola', 'Zambia', 'Zimbabwe', 'Germany', 'United Kingdom', 'United States'].map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
                   </div>
                 </motion.div>
               )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Archive, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Archive, AlertTriangle, RefreshCw, Eye } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export interface UploadItem {
@@ -17,6 +17,8 @@ interface UploadsTabProps {
   error?: string;
   onRetry?: () => void;
   onArchive: (id: string) => void;
+  /** Open the full review screen for an item. */
+  onReview?: (item: UploadItem) => void;
   archivingId?: string | null;
 }
 
@@ -33,6 +35,7 @@ export const UploadsTab: React.FC<UploadsTabProps> = ({
   error,
   onRetry,
   onArchive,
+  onReview,
   archivingId,
 }) => {
   return (
@@ -79,6 +82,14 @@ export const UploadsTab: React.FC<UploadsTabProps> = ({
                   <span className={cn('text-xs uppercase tracking-[0.25em] font-bold', STATUS_STYLES[item.status] || 'text-white/40')}>
                     {item.status}
                   </span>
+                  {onReview && (
+                    <button
+                      onClick={() => onReview(item)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-white/10 text-white rounded-lg text-xs font-bold hover:bg-white/20 transition-all"
+                    >
+                      <Eye size={14} /> View
+                    </button>
+                  )}
                   {item.status !== 'archived' && (
                     <button
                       onClick={() => onArchive(item.id)}

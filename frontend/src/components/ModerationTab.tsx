@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Check, X, AlertTriangle, RefreshCw, Eye } from 'lucide-react';
 
 export interface ModerationItem {
   id: string;
@@ -17,6 +17,8 @@ interface ModerationTabProps {
   onRetry?: () => void;
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
+  /** Open the full review screen (file, details, submitter) for an item. */
+  onReview?: (item: ModerationItem) => void;
   reviewingId?: string | null;
 }
 
@@ -27,6 +29,7 @@ export const ModerationTab: React.FC<ModerationTabProps> = ({
   onRetry,
   onApprove,
   onReject,
+  onReview,
   reviewingId,
 }) => {
   return (
@@ -69,7 +72,15 @@ export const ModerationTab: React.FC<ModerationTabProps> = ({
                     {item.createdAt ? ` · ${new Date(item.createdAt).toLocaleDateString()}` : ''}
                   </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex flex-wrap gap-2 shrink-0">
+                  {onReview && (
+                    <button
+                      onClick={() => onReview(item)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-white/10 text-white rounded-lg text-xs font-bold hover:bg-white/20 transition-all"
+                    >
+                      <Eye size={14} /> Review
+                    </button>
+                  )}
                   <button
                     onClick={() => onApprove(item.id)}
                     disabled={reviewingId === item.id}

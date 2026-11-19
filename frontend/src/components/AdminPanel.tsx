@@ -2,13 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { AppUser } from '../types';
-import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload, Share2, ClipboardList, AlertTriangle, RefreshCw, Tags, Languages } from 'lucide-react';
+import { Check, X, UserCheck, Clock, ShieldAlert, MessageSquare, Upload, Share2, ClipboardList, AlertTriangle, RefreshCw, Tags, Languages, Eye } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { supabase } from '../lib/supabaseClient';
 import { ModerationTab } from './ModerationTab';
 import { UploadsTab } from './UploadsTab';
 import { TaxonomyTab } from './TaxonomyTab';
 import { LanguagesTab } from './LanguagesTab';
+import { UserProfileModal } from './UserProfileModal';
+import { ModerationReview } from './ModerationReview';
 import { ShareRequestsTab } from './ShareRequestsTab';
 import { useShareRequests } from '../contexts/ShareRequestsContext';
 import {
@@ -54,6 +56,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
   const [recordingsLoading, setRecordingsLoading] = useState(true);
   const [recordingsError, setRecordingsError] = useState('');
   const [recordingActionId, setRecordingActionId] = useState<string | null>(null);
+
+  // Review-before-deciding: who a person is, and what a submission actually contains.
+  const [profileUser, setProfileUser] = useState<AppUser | null>(null);
+  const [reviewRec, setReviewRec] = useState<ModerationItem | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -356,6 +362,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                         </div>
                         <div className="flex gap-2">
                           <button
+                          onClick={() => setProfileUser(u)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-white/5 text-white/70 rounded-lg text-xs font-bold hover:bg-white/10 transition-all"
+                        >
+                          <Eye size={14} /> Profile
+                        </button>
+                        <button
                             onClick={() => approveRegistration(u.id)}
                             disabled={reviewingId === u.id}
                             className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-all disabled:opacity-50"
@@ -399,6 +411,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                           <p className="text-sm text-white/40 break-all">{u.email}</p>
                         </div>
                         <div className="flex gap-2">
+                          <button
+                          onClick={() => setProfileUser(u)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-white/5 text-white/70 rounded-lg text-xs font-bold hover:bg-white/10 transition-all"
+                        >
+                          <Eye size={14} /> Profile
+                        </button>
                           {!isSelf && (
                             <>
                               <button
@@ -429,6 +447,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                       </div>
                       <div className="flex gap-2">
                         <button
+                          onClick={() => setProfileUser(u)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-white/5 text-white/70 rounded-lg text-xs font-bold hover:bg-white/10 transition-all"
+                        >
+                          <Eye size={14} /> Profile
+                        </button>
+                        <button
                           onClick={() => updateRole(u.id, 'admin', `Make ${u.display_name || u.username} an administrator? Admins can approve registrations, publish content, and manage users and the taxonomy.`)}
                           className="px-3 py-1 bg-red-500/10 text-red-300 rounded-lg text-xs"
                         >
@@ -453,6 +477,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                         <p className="text-sm text-white/40 break-all">{u.email}</p>
                       </div>
                       <div className="flex gap-2">
+                        <button
+                          onClick={() => setProfileUser(u)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-white/5 text-white/70 rounded-lg text-xs font-bold hover:bg-white/10 transition-all"
+                        >
+                          <Eye size={14} /> Profile
+                        </button>
                         <button onClick={() => updateRole(u.id, 'contributor')} className="px-3 py-1 bg-amber-500/10 text-amber-500 rounded-lg text-xs">Promote</button>
                         <button onClick={() => toggleActive(u.id, !u.is_active)}
                           className={cn("px-3 py-1 rounded-lg text-xs", u.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
@@ -499,6 +529,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
                       </div>
                       <div className="flex gap-2 shrink-0">
                         <button
+                          onClick={() => setProfileUser(allUsers.find(u => u.id === app.user_id) || null)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-white/5 text-white/70 rounded-lg text-xs font-bold hover:bg-white/10 transition-all"
+                        >
+                          <Eye size={14} /> Profile
+                        </button>
+                        <button
                           onClick={() => handleApprove(app.user_id)}
                           disabled={reviewingId === app.user_id}
                           className="flex items-center gap-1 px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-bold hover:bg-green-500/30 transition-all disabled:opacity-50"
@@ -531,6 +567,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
               onRetry={fetchRecordings}
               onApprove={handlePublish}
               onReject={handleRejectRecording}
+              onReview={(item) => setReviewRec(item)}
               reviewingId={recordingActionId}
             />
           )}
@@ -542,6 +579,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
               error={recordingsError}
               onRetry={fetchRecordings}
               onArchive={handleArchiveRecording}
+              onReview={(item) => setReviewRec(item)}
               archivingId={recordingActionId}
             />
           )}
@@ -559,6 +597,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onPendingApplic
           )}
         </div>
       </motion.div>
+
+      {profileUser && (
+        <UserProfileModal
+          user={profileUser}
+          onClose={() => setProfileUser(null)}
+          busy={reviewingId === profileUser.id}
+          onApprove={profileUser.registration_status === 'pending'
+            ? async () => { await approveRegistration(profileUser.id); setProfileUser(null); }
+            : undefined}
+          onReject={profileUser.registration_status === 'pending'
+            ? async () => { await rejectRegistration(profileUser.id); setProfileUser(null); }
+            : undefined}
+        />
+      )}
+
+      {reviewRec && (
+        <ModerationReview
+          recordingId={reviewRec.id}
+          status={reviewRec.status}
+          languageName={reviewRec.languageName}
+          uploader={allUsers.find((u) => u.id === recordings.find((r) => r.id === reviewRec.id)?.uploaded_by)}
+          onClose={() => setReviewRec(null)}
+          busy={recordingActionId === reviewRec.id}
+          onPublish={async () => { await handlePublish(reviewRec.id); setReviewRec(null); }}
+          onReject={async () => { await handleRejectRecording(reviewRec.id); setReviewRec(null); }}
+        />
+      )}
     </motion.div>
   );
 };

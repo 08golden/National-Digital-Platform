@@ -13,7 +13,8 @@ interface AuthContextType {
     name?: string,
     intent?: string,
     desiredRole?: 'viewer' | 'contributor',
-    contributionDetails?: string
+    contributionDetails?: string,
+    extra?: { affiliation?: string; country?: string }
   ) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -88,11 +89,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const pendingName = authUser?.user_metadata?.full_name;
-    const pendingIntent = authUser?.user_metadata?.intent;
     const row = data as AppUser;
     const profileUpdates: any = {};
     if (pendingName && !row.display_name) profileUpdates.display_name = pendingName;
-    if (pendingIntent && !row.metadata?.intent) profileUpdates.metadata = { ...(row.metadata || {}), intent: pendingIntent };
+    // Top up any sign-up answer the profile is still missing. Existing values
+    // always win, and the merge keeps everything else in metadata intact.
+    const missing: Record<string, string> = {};
+    for (const key of ['intent', 'affiliation', 'country', 'desired_role', 'contribution_details']) {
+      const v = authUser?.user_metadata?.[key];
+      if (v && !row.metadata?.[key]) missing[key] = v;
+    }
+    if (Object.keys(missing).length > 0) profileUpdates.metadata = { ...(row.metadata || {}), ...missing };
     if (Object.keys(profileUpdates).length > 0) {
       Promise.resolve(supabase.from('users').update(profileUpdates).eq('id', userId))
         .then(() => setAppUser({ ...row, ...profileUpdates }))
@@ -111,7 +118,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     name?: string,
     intent?: string,
     desiredRole?: 'viewer' | 'contributor',
-    contributionDetails?: string
+    contributionDetails?: string,
+    extra?: { affiliation?: string; country?: string }
   ) => {
     const { error } = await supabase.auth.signUp({
       email,
@@ -120,6 +128,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         data: {
           full_name: name || null,
           intent: intent || null,
+          affiliation: extra?.affiliation || null,
+          country: extra?.country || null,
           desired_role: desiredRole || 'viewer',
           contribution_details: contributionDetails || null,
         },
@@ -127,15 +137,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
     if (error) throw error;
 
-    // After signup, the trigger creates public.users row. We can update extra fields.
+    // The profile row is created by a database trigger, which now copies the
+    // sign-up details across itself. fetchAppUser below also tops up anything
+    // still missing (it MERGES — an earlier version here wrote
+    // `metadata = { intent }`, which would have wiped everything else the
+    // trigger had just carried over).
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const updates: any = {};
-      if (name) updates.display_name = name;
-      if (intent) updates.metadata = { intent };
-      if (Object.keys(updates).length > 0) {
-        await supabase.from('users').update(updates).eq('id', user.id);
-      }
       // If there's already an active session (no email confirmation
       // required on this project), submit the contributor application
       // immediately rather than waiting for the next login.
